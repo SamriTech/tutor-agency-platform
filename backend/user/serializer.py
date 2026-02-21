@@ -4,7 +4,8 @@ from dj_rest_auth.serializers import LoginSerializer
 from phonenumber_field.serializerfields import PhoneNumberField
 from .models import (MyUser, OTP, PasswordResetToken, Qualification, 
                     QualificationImage, Transaction,
-                    Availability,Subject, Expertise)
+                    Availability,Subject, Expertise,
+                    StudentProfile, TutorProfile)
 from rest_framework import serializers
 
 class ExpertiseSerializer(serializers.ModelSerializer):
@@ -17,16 +18,31 @@ class SubjectSerializer(serializers.ModelSerializer):
         model = Subject
         fields = ['id', 'name']
 
+class StudentProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentProfile
+        fields = ['grade_level']
+
+class TutorProfileSerializer(serializers.ModelSerializer):
+    expertise = ExpertiseSerializer(many=True, read_only=True)
+    subject = SubjectSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = TutorProfile
+        fields = [
+            'bio', 'subject', 'hourly_rate', 
+            'id_photo', 'title', 'expertise'
+        ]
+
 class CustomUserDetailSerializer(UserDetailsSerializer):
-    expertise_details = ExpertiseSerializer(source='expertise', many=True, read_only=True)
-    subject_details = SubjectSerializer(source='subject', read_only=True)
+    student_profile = StudentProfileSerializer(read_only=True)
+    tutor_profile = TutorProfileSerializer(read_only=True)
     
     class Meta:
         fields = [
             "id", "username", "first_name", "last_name", "email", 
             "is_phone_verified", "photo", "role", "location", 
-            "subject", "subject_details", "hourly_rate", 
-            "id_photo", "title", "expertise", "expertise_details"
+            "student_profile", "tutor_profile"
         ]
         model = MyUser
 
@@ -45,11 +61,11 @@ class QualificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Qualification
         fields = [
-            'id', 'user', 'title', 'type', 'status', 
+            'id', 'tutor', 'title', 'type', 'status', 
             'description', 'link', 'pdf', 'word_doc', 
             'images', 'uploaded_images'
         ]
-        read_only_fields = ['user', 'status']
+        read_only_fields = ['tutor', 'status']
 
     def create(self, validated_data):
         uploaded_images = validated_data.pop('uploaded_images', [])
@@ -71,8 +87,8 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Availability
-        fields = ['id', 'user', 'day_of_week', 'day_name', 'start_time', 'end_time']
-        read_only_fields = ['user']
+        fields = ['id', 'tutor', 'day_of_week', 'day_name', 'start_time', 'end_time']
+        read_only_fields = ['tutor']
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -92,8 +108,10 @@ class CustomRegisterSerializer(RegisterSerializer):
     password2 = None
 
     def validate(self, attrs):
+        email = attrs.get('email')
+        if email and MyUser.objects.filter(email=email).exists():
+            raise serializers.ValidationError({"email": ["Email already exists"]})
         return attrs
-
     def get_cleaned_data(self):
         data = super().get_cleaned_data()
         data['phone_number'] = self.validated_data.get('phone_number', '')
@@ -107,11 +125,20 @@ class FinishSignupSerializer(serializers.ModelSerializer):
     location = serializers.CharField(required=True)
     role = serializers.ChoiceField(choices=MyUser.ROLE_CHOICES, required=True)
     
+    # Profile fields
+    grade_level = serializers.CharField(required=False)
+    subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all(), many=True, required=False)
+    hourly_rate = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    title = serializers.CharField(required=False)
+    expertise = serializers.PrimaryKeyRelatedField(queryset=Expertise.objects.all(), many=True, required=False)
+    bio = serializers.CharField(required=False)
+
     class Meta:
         model = MyUser
         fields = [
-            'phone_number', 'location', 'role', 'subject', 
-            'hourly_rate', 'title', 'expertise'
+            'phone_number', 'location', 'role', 
+            'grade_level', 'subject', 'hourly_rate', 
+            'title', 'expertise', 'bio'
         ]
 
     def validate(self, data):
@@ -121,6 +148,34 @@ class FinishSignupSerializer(serializers.ModelSerializer):
             if not data.get('hourly_rate'):
                 raise serializers.ValidationError({"hourly_rate": "Hourly rate is required for tutors."})
         return data
+
+    def update(self, instance, validated_data):
+        grade_level = validated_data.pop('grade_level', None)
+        subject = validated_data.pop('subject', [])
+        hourly_rate = validated_data.pop('hourly_rate', None)
+        title = validated_data.pop('title', None)
+        expertise = validated_data.pop('expertise', [])
+        bio = validated_data.pop('bio', None)
+
+        instance = super().update(instance, validated_data)
+
+        if instance.role == 'student' and grade_level:
+            profile = instance.student_profile
+            profile.grade_level = grade_level
+            profile.save()
+        elif instance.role == 'tutor':
+            profile = instance.tutor_profile
+            if hourly_rate: profile.hourly_rate = hourly_rate
+            if title: profile.title = title
+            if bio: profile.bio = bio
+            profile.save()
+            
+            if subject:
+                profile.subject.set(subject)
+            if expertise:
+                profile.expertise.set(expertise)
+
+        return instance
 
 class CustomPasswordResetSerializer(serializers.Serializer):
     phone = PhoneNumberField(region="ET")

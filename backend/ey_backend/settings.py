@@ -66,7 +66,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -83,9 +83,12 @@ AUTHENTICATION_BACKENDS = [
 
 ROOT_URLCONF = 'ey_backend.urls'
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000"
+]
 
-
+CORS_ALLOW_CREDENTIALS = True
 
 TEMPLATES = [
     {
@@ -110,12 +113,13 @@ WSGI_APPLICATION = 'ey_backend.wsgi.application'
 AUTH_USER_MODEL = "user.MyUser"
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv("DB_NAME"),
-        'USER': os.getenv("DB_USER"),
-        'PASSWORD': os.getenv("DB_PASSWORD"),
-        'HOST':os.getenv("DB_HOST") ,
-        'PORT': os.getenv("DB_PORT"),
+        'ENGINE': 'django.db.backends.sqlite3',
+        "NAME":BASE_DIR / "db.sqlite3",
+        # 'NAME': os.getenv("DB_NAME"),
+        # 'USER': os.getenv("DB_USER"),
+        # 'PASSWORD': os.getenv("DB_PASSWORD"),
+        # 'HOST':os.getenv("DB_HOST") ,
+        # 'PORT': os.getenv("DB_PORT"),
     }
 }
 
@@ -141,20 +145,24 @@ REST_AUTH = {
     'REGISTER_SERIALIZER': 'user.serializer.CustomRegisterSerializer',
     "USER_DETAILS_SERIALIZER":"user.serializer.CustomUserDetailSerializer",
     'USE_JWT': True,
-    'JWT_AUTH_COOKIE': 'jwt-token',
+    'JWT_AUTH_COOKIE': 'jwt-access-token',
     'JWT_AUTH_REFRESH_COOKIE': 'jwt-refresh-token',
     'JWT_AUTH_HTTPONLY': True,
     "JWT_AUTH_COOKIE_USE_CSRF":False,
+    'JWT_AUTH_SAMESITE': 'None',
+    'JWT_AUTH_RETURN_EXPIRATION': True,
+    'JWT_AUTH_SECURE': True,  # true in production
 }
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=3),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=12),
     'ROTATE_REFRESH_TOKENS': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-OLD_PASSWORD_FIELD_ENABLED = True
 
+
+OLD_PASSWORD_FIELD_ENABLED = True
 LOGOUT_ON_PASSWORD_CHANGE = False
 
 # All auth Setings

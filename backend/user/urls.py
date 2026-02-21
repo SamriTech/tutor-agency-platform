@@ -33,7 +33,10 @@ urlpatterns = [
     path("changepassword", ChangePasswordView.as_view(), name="passwordchange"),
     
     path("verifyotp", VerifyCode.as_view(), name="verify_otp_code"),
+    path("resend-otp/", ResendOTPView.as_view(), name="resend_otp"),
     path('google/', GoogleLogin.as_view(), name='google_login'),
+    path('logout/', CustomLogoutView.as_view(), name='custom_logout'),
+    path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('', include('dj_rest_auth.urls')),
     path('registration/', CustomRegisterView.as_view(), name='custom_register'),
 ]

@@ -3,3 +3,6 @@ __pycache__
 migrations/
 */migrations/*
 checklist.MD
+frontend/
+frontend
+db.sqlite3

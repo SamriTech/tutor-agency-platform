@@ -46,15 +46,27 @@ class MyUser(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
     location = models.CharField(max_length=255,blank=True)
     
-    # Tutor specific fields
-    subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True)
+    objects = MyManager()
+    USERNAME_FIELD = "username"
+
+class StudentProfile(models.Model):
+    user = models.OneToOneField(MyUser, on_delete=models.CASCADE, related_name='student_profile')
+    grade_level = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        return f"Student Profile for {self.user.username}"
+
+class TutorProfile(models.Model):
+    user = models.OneToOneField(MyUser, on_delete=models.CASCADE, related_name='tutor_profile')
+    bio = models.TextField(blank=True, null=True)
+    subject = models.ManyToManyField(Subject)
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     id_photo = models.ImageField(upload_to='users/ids/', null=True, blank=True)
     title = models.CharField(max_length=100, null=True, blank=True, help_text="e.g. Physics Specialist")
-    expertise = models.ManyToManyField(Expertise, blank=True, related_name='tutors')
+    expertise = models.ManyToManyField(Expertise, blank=True, related_name='tutor_profiles')
 
-    objects = MyManager()
-    USERNAME_FIELD = "username"
+    def __str__(self):
+        return f"Tutor Profile for {self.user.username}"
 
 class Qualification(models.Model):
     QUALIFICATION_TYPES = [
@@ -68,7 +80,7 @@ class Qualification(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
     ]
-    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='qualifications')
+    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='qualifications')
     title = models.CharField(max_length=255, null=True, blank=True)
     type = models.CharField(max_length=20, choices=QUALIFICATION_TYPES, default='education')
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
@@ -78,7 +90,7 @@ class Qualification(models.Model):
     word_doc = models.FileField(upload_to='qualifications/docs/', blank=True, null=True)
 
     def __str__(self):
-        return f"{self.type.title()} of {self.user.username}: {self.title} ({self.status})"
+        return f"{self.type.title()} of {self.tutor.user.username}: {self.title} ({self.status})"
 
 class QualificationImage(models.Model):
     qualification = models.ForeignKey(Qualification, on_delete=models.CASCADE, related_name='images')
@@ -113,7 +125,7 @@ class Availability(models.Model):
         (5, 'Saturday'),
         (6, 'Sunday'),
     ]
-    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='availabilities')
+    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availabilities')
     day_of_week = models.IntegerField(choices=DAYS_OF_WEEK)
     start_time = models.TimeField()
     end_time = models.TimeField()
@@ -123,7 +135,7 @@ class Availability(models.Model):
         ordering = ['day_of_week', 'start_time']
 
     def __str__(self):
-        return f"{self.user.username} - {self.get_day_of_week_display()} {self.start_time} to {self.end_time}"
+        return f"{self.tutor.user.username} - {self.get_day_of_week_display()} {self.start_time} to {self.end_time}"
 
 class Transaction(models.Model):
     TRANSACTION_TYPES = [

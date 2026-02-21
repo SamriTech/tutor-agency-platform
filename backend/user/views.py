@@ -2,13 +2,13 @@ from django.shortcuts import render
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
+from rest_framework import status
+from dj_rest_auth.jwt_auth import set_jwt_cookies
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import permission_classes, authentication_classes, api_view
-from phonenumber_field.phonenumber import PhoneNumber
-from .models import (OTP, PasswordResetToken, Qualification, QualificationImage, 
-                    MyUser, Transaction, Availability,Subject, Expertise)
+from .models import (OTP, PasswordResetToken, Qualification, 
+                    MyUser, Transaction, Availability, Expertise)
 from rest_framework.response import Response
-from django.utils import timezone
 from .serializer import (
     CustomPasswordResetSerializer, 
     PasswordRestTokenSeriailzer, 
@@ -23,6 +23,49 @@ from .serializer import (
 from dj_rest_auth.registration.views import RegisterView
 from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from .utils import verify_phone_util
+from .adapter import CustomAccountAdapter
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class CustomTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            # Try to get user status from the refresh token
+            refresh_token = request.COOKIES.get('jwt-refresh-token') or request.data.get('refresh')
+            if refresh_token:
+                try:
+                    token = RefreshToken(refresh_token)
+                    user_id = token['user_id']
+                    user = MyUser.objects.get(id=user_id)
+                    response.data['user'] = {
+                        'is_phone_verified': user.is_phone_verified,
+                        'role': user.role,
+                        'username': user.username
+                    }
+                except Exception:
+                    pass
+        return response
+
+class ResendOTPView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_phone_verified:
+            return Response({"detail": "Phone already verified."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        adapter = CustomAccountAdapter()
+        # Delete old OTP if exists to force a new one
+        OTP.objects.filter(user=user).delete()
+        otp_obj = OTP.objects.create(user=user)
+        
+        adapter.send_verification_code_sms(user, str(user.phone_number), otp_obj.code)
+        
+        return Response({
+            "status": "success",
+            "message": "A new verification code has been sent to your phone."
+        }, status=status.HTTP_200_OK)
 from .adapter import CustomAccountAdapter
 from django_filters.rest_framework import DjangoFilterBackend
 from ey_backend.chapa import Chapa
@@ -57,17 +100,17 @@ class QualificationListCreateView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Qualification.objects.filter(user=self.request.user)
+        return Qualification.objects.filter(tutor__user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(tutor=self.request.user.tutor_profile)
 
 class QualificationDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = QualificationSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Qualification.objects.filter(user=self.request.user)
+        return Qualification.objects.filter(tutor__user=self.request.user)
 
 class UserQualificationsView(ListAPIView):
     serializer_class = QualificationSerializer
@@ -75,7 +118,7 @@ class UserQualificationsView(ListAPIView):
 
     def get_queryset(self):
         user_id = self.kwargs.get('user_id')
-        return Qualification.objects.filter(user_id=user_id, status='approved')
+        return Qualification.objects.filter(tutor__user_id=user_id, status='approved')
 
 # Availability Views
 class AvailabilityListCreateView(ListCreateAPIView):
@@ -83,17 +126,17 @@ class AvailabilityListCreateView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Availability.objects.filter(user=self.request.user)
+        return Availability.objects.filter(tutor__user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(tutor=self.request.user.tutor_profile)
 
 class AvailabilityDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = AvailabilitySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Availability.objects.filter(user=self.request.user)
+        return Availability.objects.filter(tutor__user=self.request.user)
 
 class UserAvailabilityView(ListAPIView):
     serializer_class = AvailabilitySerializer
@@ -101,7 +144,7 @@ class UserAvailabilityView(ListAPIView):
 
     def get_queryset(self):
         user_id = self.kwargs.get('user_id')
-        return Availability.objects.filter(user_id=user_id)
+        return Availability.objects.filter(tutor__user_id=user_id)
 
 # Expertise Views
 class ExpertiseListView(ListAPIView):
@@ -235,9 +278,9 @@ class UserListView(ListAPIView):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = {
         'role': ['exact'],
-        'subject': ['exact'],
+        'tutor_profile__subject': ['exact'],
         'location': ['icontains', 'exact'],
-        'expertise': ['exact']
+        'tutor_profile__expertise': ['exact']
     }
     permission_classes = [AllowAny]
 
@@ -281,8 +324,23 @@ class ChangePasswordView(GenericAPIView):
             return Response({'status':"error","message":"token does not match"})
         return Response({'status':"error","message":"invalid credentials"}, status=400)
 
+
+class CustomLogoutView(GenericAPIView):
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        response = Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+        response.delete_cookie('jwt-access-token',samesite="None")
+        response.delete_cookie('jwt-refresh-token',samesite="None")
+        return response
+
 class CustomRegisterView(RegisterView):
-    pass
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        access_token = response.data.get('access')
+        refresh_token = response.data.get('refresh')
+        if access_token and refresh_token:
+            set_jwt_cookies(response, access_token, refresh_token)
+        return response
 
 class FinishSignupView(GenericAPIView):
     serializer_class = FinishSignupSerializer
@@ -317,4 +375,4 @@ class VerifyCode(GenericAPIView):
             user.save()
             otp_obj.first().delete()
             return Response({"status":"success","message":"Account Verified"}, status=200)
-        verify_phone_util(request, otp_obj, callback)
+        return verify_phone_util(request, otp_obj, callback)
