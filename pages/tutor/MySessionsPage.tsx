@@ -4,20 +4,22 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import { SESSIONS } from '../../constants';
-import { Session, SessionStatus } from '../../types';
+import { Session, SessionStatus, Role } from '../../types';
+import { AuthGuard } from '../../features/auth/AuthGuard';
+import { RoleGuard } from '../../features/auth/RoleGuard';
 
 const MySessionsPage: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'requests' | 'sessions'>('requests');
-    
+
     const pendingRequests = SESSIONS.filter(s => s.status === SessionStatus.Pending);
     const confirmedSessions = SESSIONS.filter(s => s.status === SessionStatus.Confirmed || s.status === SessionStatus.Completed);
-    
+
     const handleAccept = (session: Session) => {
         alert(`Request from ${session.parent.name} accepted!`);
         // In real app, update session status
     }
-    
+
     const handleDecline = (session: Session) => {
         alert(`Request from ${session.parent.name} declined.`);
     }
@@ -47,13 +49,13 @@ const MySessionsPage: React.FC = () => {
             <Header />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <h1 className="text-3xl font-bold text-neutral-800 mb-6">My Sessions & Requests</h1>
-                
+
                 <div className="border-b border-neutral-200">
                     <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                         <button onClick={() => setActiveTab('requests')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'requests' ? 'border-primary text-primary' : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'}`}>
                             Parent Requests ({pendingRequests.length})
                         </button>
-                         <button onClick={() => setActiveTab('sessions')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'sessions' ? 'border-primary text-primary' : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'}`}>
+                        <button onClick={() => setActiveTab('sessions')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'sessions' ? 'border-primary text-primary' : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'}`}>
                             Upcoming Sessions ({confirmedSessions.length})
                         </button>
                     </nav>
@@ -61,13 +63,13 @@ const MySessionsPage: React.FC = () => {
 
                 <div className="mt-8 space-y-4">
                     {activeTab === 'requests' && (
-                        pendingRequests.length > 0 
-                            ? pendingRequests.map(s => <SessionCard key={s.id} session={s} />)
+                        pendingRequests.length > 0
+                            ? pendingRequests.map(s => <div key={s.id}><SessionCard session={s} /></div>)
                             : <p className="text-neutral-500">No new parent requests at the moment.</p>
                     )}
                     {activeTab === 'sessions' && (
-                        confirmedSessions.length > 0 
-                            ? confirmedSessions.map(s => <SessionCard key={s.id} session={s} />)
+                        confirmedSessions.length > 0
+                            ? confirmedSessions.map(s => <div key={s.id}><SessionCard session={s} /></div>)
                             : <p className="text-neutral-500">You have no upcoming sessions scheduled.</p>
                     )}
                 </div>
@@ -77,4 +79,10 @@ const MySessionsPage: React.FC = () => {
     );
 };
 
-export default MySessionsPage;
+export default () => (
+    <AuthGuard>
+        <RoleGuard role={Role.Tutor}>
+            <MySessionsPage />
+        </RoleGuard>
+    </AuthGuard>
+);

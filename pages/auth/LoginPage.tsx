@@ -1,37 +1,44 @@
-// src/pages/auth/LoginPage.tsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Role } from '../../types';
-import { useLogin } from "../../features/auth/hooks";
+import { useLogin, useResendOtp } from "../../features/auth/hooks";
+import { getErrorMessage } from '../../lib/utils/errorUtils';
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
+  const { mutate } = useResendOtp()
   const loginMutation = useLogin();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
 
-    if (!email || !password) {
-      setError("Please enter email and password.");
+    if (!username || !password) {
+      setError("Please enter username and password.");
       return;
     }
 
     try {
-      const res = await loginMutation.mutateAsync({ email, password });
-      const role = res.data.user.role;
+      const res = await loginMutation.mutateAsync({ username, password });
+      const user = res.data.user;
 
-      switch(role) {
+      if (!user.is_phone_verified) {
+        mutate()
+        navigate('/verify-phone');
+        return;
+      }
+
+      switch (user.role) {
         case Role.Parent: navigate('/parent/dashboard'); break;
         case Role.Tutor: navigate('/tutor/dashboard'); break;
         case Role.Admin: navigate('/admin/dashboard'); break;
         default: navigate('/');
       }
-    } catch {
-      setError("Login failed.");
+    } catch (err: any) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -53,17 +60,17 @@ const LoginPage: React.FC = () => {
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-neutral-700">
-                Email address
+                Username or Phone
               </label>
               <div className="mt-1">
                 <input
                   id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 />
               </div>

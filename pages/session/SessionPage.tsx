@@ -5,6 +5,7 @@ import Header from '../../components/ui/Header';
 import VideoPanel from '../../components/session/VideoPanel';
 import ChatPanel from '../../components/session/ChatPanel';
 import Whiteboard from '../../components/session/Whiteboard';
+import { AuthGuard } from '../../features/auth/AuthGuard';
 
 const SessionPage: React.FC = () => {
     const { sessionId } = useParams();
@@ -20,8 +21,8 @@ const SessionPage: React.FC = () => {
                 <div className="flex flex-col lg:flex-row gap-4 flex-grow h-[calc(100vh-150px)]">
                     {/* Main Content: Video + Whiteboard */}
                     <main className="flex-grow lg:w-3/4 flex flex-col gap-4">
-                       <VideoPanel />
-                       <Whiteboard />
+                        <VideoPanel />
+                        <Whiteboard />
                     </main>
 
                     {/* Sidebar: Chat */}
@@ -34,4 +35,8 @@ const SessionPage: React.FC = () => {
     );
 };
 
-export default SessionPage;
+export default () => (
+    <AuthGuard>
+        <SessionPage />
+    </AuthGuard>
+);

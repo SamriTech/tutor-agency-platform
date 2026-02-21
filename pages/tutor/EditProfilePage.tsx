@@ -5,11 +5,14 @@ import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import { useAuthStore } from '@/store/authStore';
 import { TUTORS } from '../../constants';
+import { AuthGuard } from '../../features/auth/AuthGuard';
+import { RoleGuard } from '../../features/auth/RoleGuard';
+import { Role } from '../../types';
 
 const EditTutorProfilePage: React.FC = () => {
-     const user = useAuthStore(state => state.user);
+    const user = useAuthStore(state => state.user);
     const navigate = useNavigate();
-    
+
     // Find the current tutor's data to pre-fill the form
     const currentTutor = TUTORS.find(t => t.email === user?.email) || TUTORS[0];
     const [tutorData, setTutorData] = useState(currentTutor);
@@ -33,9 +36,9 @@ const EditTutorProfilePage: React.FC = () => {
                     <h1 className="text-3xl font-bold text-neutral-800 mb-6">Edit My Profile</h1>
                     <form onSubmit={handleSave} className="bg-white p-8 rounded-lg shadow-sm space-y-6">
                         <div className="flex items-center space-x-6">
-                            <img 
-                                src={tutorData.avatarUrl} 
-                                alt={tutorData.name} 
+                            <img
+                                src={tutorData.avatarUrl}
+                                alt={tutorData.name}
                                 className="w-24 h-24 rounded-full"
                             />
                             <div>
@@ -55,17 +58,17 @@ const EditTutorProfilePage: React.FC = () => {
                             <label htmlFor="bio" className="block text-sm font-medium text-neutral-700">Bio / Professional Summary</label>
                             <textarea name="bio" id="bio" rows={5} value={tutorData.bio} onChange={handleInputChange} className="mt-1 w-full p-2 border rounded-md border-neutral-300"></textarea>
                         </div>
-                        
-                         <div>
+
+                        <div>
                             <label htmlFor="subjects" className="block text-sm font-medium text-neutral-700">Subjects (comma-separated)</label>
-                            <input type="text" name="subjects" id="subjects" value={tutorData.subjects.join(', ')} onChange={e => setTutorData(p => ({...p, subjects: e.target.value.split(',').map(s => s.trim())}))} className="mt-1 w-full p-2 border rounded-md border-neutral-300" />
+                            <input type="text" name="subjects" id="subjects" value={tutorData.subjects.join(', ')} onChange={e => setTutorData(p => ({ ...p, subjects: e.target.value.split(',').map(s => s.trim()) }))} className="mt-1 w-full p-2 border rounded-md border-neutral-300" />
                         </div>
-                        
-                         <div>
+
+                        <div>
                             <label htmlFor="pricePerHour" className="block text-sm font-medium text-neutral-700">Price Per Hour (ETB)</label>
                             <input type="number" name="pricePerHour" id="pricePerHour" value={tutorData.pricePerHour} onChange={handleInputChange} className="mt-1 w-full p-2 border rounded-md border-neutral-300" />
                         </div>
-                        
+
                         {/* A more complex availability editor would be needed in a real app */}
                         <div>
                             <label className="block text-sm font-medium text-neutral-700">Availability</label>
@@ -84,4 +87,10 @@ const EditTutorProfilePage: React.FC = () => {
     );
 };
 
-export default EditTutorProfilePage;
+export default () => (
+    <AuthGuard>
+        <RoleGuard role={Role.Tutor}>
+            <EditTutorProfilePage />
+        </RoleGuard>
+    </AuthGuard>
+);

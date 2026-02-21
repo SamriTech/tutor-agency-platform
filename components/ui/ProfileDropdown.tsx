@@ -7,22 +7,17 @@ import ChevronDownIcon from '../icons/ChevronDownIcon';
 import UserCircleIcon from '../icons/UserCircleIcon';
 import CogIcon from '../icons/CogIcon';
 import LogoutIcon from '../icons/LogoutIcon';
-
+import { useLogout } from "../../features/auth/hooks"
 const ProfileDropdown: React.FC = () => {
 
     const user = useAuthStore(state => state.user);
-    const logout = useAuthStore(state => state.logout);
-
+    const { mutateAsync, isError } = useLogout()
     const [isOpen, setIsOpen] = useState(false);
     const navigate = useNavigate();
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const handleLogout = () => {
-
-        // OPTIONAL: call backend logout endpoint if exists
-        // await api.post('/auth/logout')
-
-        logout();
+        mutateAsync()
         navigate('/');
     };
 
@@ -86,13 +81,13 @@ const ProfileDropdown: React.FC = () => {
                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-neutral-100 transition-colors"
             >
                 <img
-                    src={user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name.replace(' ', '+')}&background=4C1D95&color=fff`}
-                    alt={user.name}
+                    src={user.photo || `https://ui-avatars.com/api/?name=${user.username.replace(' ', '+')}&background=4C1D95&color=fff`}
+                    alt={user.username}
                     className="w-8 h-8 rounded-full"
                 />
 
                 <span className="hidden sm:inline text-sm font-medium text-neutral-700">
-                    {user.name}
+                    {user.username}
                 </span>
 
                 <ChevronDownIcon className="hidden sm:inline w-5 h-5 text-neutral-500" />

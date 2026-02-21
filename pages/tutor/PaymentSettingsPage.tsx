@@ -3,11 +3,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
+import { AuthGuard } from '../../features/auth/AuthGuard';
+import { RoleGuard } from '../../features/auth/RoleGuard';
+import { Role } from '../../types';
 
 const PaymentSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const [paymentMethod, setPaymentMethod] = useState('bank');
-    
+
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         alert("Payment settings updated successfully!");
@@ -23,7 +26,7 @@ const PaymentSettingsPage: React.FC = () => {
                     <div className="bg-white p-8 rounded-lg shadow-sm">
                         <h2 className="text-xl font-bold mb-4">Payout Method</h2>
                         <p className="text-neutral-600 mb-6">Choose how you'd like to receive your earnings. Payouts are processed weekly.</p>
-                        
+
                         <div className="flex border-b mb-6">
                             <button onClick={() => setPaymentMethod('bank')} className={`px-4 py-2 text-sm font-medium ${paymentMethod === 'bank' ? 'border-b-2 border-primary text-primary' : 'text-neutral-500'}`}>
                                 Bank Account
@@ -32,7 +35,7 @@ const PaymentSettingsPage: React.FC = () => {
                                 Chapa
                             </button>
                         </div>
-                        
+
                         <form onSubmit={handleSave} className="space-y-6">
                             {paymentMethod === 'bank' && (
                                 <div className="space-y-4">
@@ -70,4 +73,10 @@ const PaymentSettingsPage: React.FC = () => {
     );
 };
 
-export default PaymentSettingsPage;
+export default () => (
+    <AuthGuard>
+        <RoleGuard role={Role.Tutor}>
+            <PaymentSettingsPage />
+        </RoleGuard>
+    </AuthGuard>
+);

@@ -1,9 +1,10 @@
-
 import React from 'react';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import CheckCircleIcon from '../../components/icons/CheckCircleIcon';
-
+import { AuthGuard } from '../../features/auth/AuthGuard';
+import { RoleGuard } from '../../features/auth/RoleGuard';
+import { Role } from '../../types';
 const RequestStatusPage: React.FC = () => {
     const currentStep = 2; // Mock current step
     const steps = [
@@ -12,17 +13,16 @@ const RequestStatusPage: React.FC = () => {
         "Tutor Confirmation Pending",
         "Session Scheduled"
     ];
-
     return (
         <div className="bg-neutral-100 min-h-screen">
             <Header />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="max-w-3xl mx-auto">
                     <h1 className="text-3xl font-bold text-center mb-8">My Tutor Request Status</h1>
-                    
+
                     <div className="bg-white p-8 rounded-lg shadow-sm">
                         <p className="text-neutral-600 mb-8 text-center">Your request for a <strong>Grade 8 Mathematics</strong> tutor in <strong>Bole, Addis Ababa</strong> is in progress. Here's the current status:</p>
-                        
+
                         <div className="space-y-8">
                             {steps.map((step, index) => (
                                 <div key={step} className="flex">
@@ -53,5 +53,10 @@ const RequestStatusPage: React.FC = () => {
         </div>
     );
 };
-
-export default RequestStatusPage;
+export default () => (
+    <AuthGuard>
+        <RoleGuard role={Role.Parent}>
+            <RequestStatusPage />
+        </RoleGuard>
+    </AuthGuard>
+);

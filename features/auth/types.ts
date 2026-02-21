@@ -1,21 +1,37 @@
 import { User, Role } from "@/types";
 
 export interface LoginPayload {
-  email: string;
+  username: string;
   password: string;
 }
 
 export interface RegisterPayload {
   name: string;
+  username: string;
   email: string;
-  password: string;
-  role: Role; // Using the Enum from your global types
+  phone_number: string;
+  location: string;
+  password1: string;
+  confirm_password?: string;
+  role: Role;
+}
+
+export interface VerifyOtpPayload {
+  otp: string;
+}
+
+export interface CompleteSignupPayload {
+  bio?: string;
+  hourly_rate?: string;
+  subject?: number[];
+  expertise?: number[];
+  grade_level?: string;
 }
 
 export interface AuthResponse {
   user: User;
   // dj-rest-auth sometimes wraps the response or adds message strings
-  detail?: string; 
+  detail?: string;
 }
 
 // For the password reset flow in your API docs
