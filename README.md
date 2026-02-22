@@ -14,12 +14,14 @@
 **Prerequisites:**  Python
 
 1. create virtualenv 
-    `python -m venv virtualenv`
+    `python -m venv .venv`
 2. activate virtualenv
-    `virtualenv\Scripts\activate`
+    `.venv\Scripts\activate`
 3. install dependancies
     `pip install -r requirments.txt`
-4. make migrations and migrate
+4. go to backend
+     `cd backend`
+5. make migrations and migrate
     `python manage.py makemigrations` &&
     `python manage.py migrate`
 6. runserver
