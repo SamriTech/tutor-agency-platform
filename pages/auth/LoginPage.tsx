@@ -98,9 +98,9 @@ const LoginPage: React.FC = () => {
 
             <div className="flex items-center justify-between">
               <div className="text-sm">
-                <a href="#" className="font-medium text-primary hover:text-primary-light">
+                <Link to="/forgot-password" className="font-medium text-primary hover:text-primary-light">
                   Forgot your password?
-                </a>
+                </Link>
               </div>
             </div>
 

@@ -9,6 +9,8 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import VerifyPhonePage from './pages/auth/VerifyPhonePage';
 import FinishSignupPage from './pages/auth/FinishSignupPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import TutorProfilePage from './pages/parent/TutorProfilePage';
 import RequestConfirmationPage from './pages/parent/RequestConfirmationPage';
 import TutorRegistrationPage from './pages/tutor/TutorRegistrationPage';
@@ -31,6 +33,8 @@ const App: React.FC = () => {
           {/* PUBLIC */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-phone" element={<VerifyPhonePage />} />
           <Route path="/finish-signup" element={<FinishSignupPage />} />

@@ -36,11 +36,16 @@ export interface AuthResponse {
 
 // For the password reset flow in your API docs
 export interface PasswordResetPayload {
-  email: string;
+  // backend currently expects a phone number (region ET) to send OTP
+  phone: string;
+}
+
+export interface VerifyResetPayload {
+  code: string;
 }
 
 export interface ChangePasswordPayload {
-  old_password?: string;
-  new_password1: string;
-  new_password2: string;
+  token: string;
+  password: string;
+  confirm_password: string;
 }
