@@ -120,6 +120,7 @@ class CustomRegisterSerializer(RegisterSerializer):
         data["email"] = self.validated_data.get("email","")
         return data
 
+# serializer used during first signup to collect required info and send verification SMS
 class FinishSignupSerializer(serializers.ModelSerializer):
     phone_number = PhoneNumberField(required=True)
     location = serializers.CharField(required=True)
@@ -142,6 +143,7 @@ class FinishSignupSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
+        # on finish signup we enforce minimal tutor requirements
         if data.get('role') == 'tutor':
             if not data.get('subject'):
                 raise serializers.ValidationError({"subject": "Subject is required for tutors."})
@@ -176,6 +178,78 @@ class FinishSignupSerializer(serializers.ModelSerializer):
                 profile.expertise.set(expertise)
 
         return instance
+
+# serializer for reading/updating the logged-in user's profile outside of signup
+class UserProfileSerializer(serializers.ModelSerializer):
+    phone_number = PhoneNumberField(required=False)
+    location = serializers.CharField(required=False)
+    role = serializers.ChoiceField(choices=MyUser.ROLE_CHOICES, required=False)
+
+    # make nested profile writable
+    grade_level = serializers.CharField(required=False)
+    subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all(), many=True, required=False)
+    hourly_rate = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    title = serializers.CharField(required=False)
+    expertise = serializers.PrimaryKeyRelatedField(queryset=Expertise.objects.all(), many=True, required=False)
+    bio = serializers.CharField(required=False)
+    photo = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = MyUser
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "phone_number",
+            "location",
+            "role",
+            "photo",
+            "is_phone_verified",
+            # profile fields
+            'grade_level',
+            'subject',
+            'hourly_rate',
+            'title',
+            'expertise',
+            'bio',
+        ]
+        read_only_fields = ['is_phone_verified']
+
+    def update(self, instance, validated_data):
+        # reuse logic from FinishSignupSerializer for profile fields
+        grade_level = validated_data.pop('grade_level', None)
+        subject = validated_data.pop('subject', [])
+        hourly_rate = validated_data.pop('hourly_rate', None)
+        title = validated_data.pop('title', None)
+        expertise = validated_data.pop('expertise', [])
+        bio = validated_data.pop('bio', None)
+
+        instance = super().update(instance, validated_data)
+
+        if instance.role == 'student' and grade_level is not None:
+            profile = instance.student_profile
+            profile.grade_level = grade_level
+            profile.save()
+        elif instance.role == 'tutor':
+            profile = instance.tutor_profile
+            if hourly_rate is not None:
+                profile.hourly_rate = hourly_rate
+            if title is not None:
+                profile.title = title
+            if bio is not None:
+                profile.bio = bio
+            profile.save()
+
+            if subject is not None:
+                profile.subject.set(subject)
+            if expertise is not None:
+                profile.subject.set(expertise)
+
+        return instance
+
+
 
 class CustomPasswordResetSerializer(serializers.Serializer):
     phone = PhoneNumberField(region="ET")

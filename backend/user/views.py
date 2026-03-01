@@ -14,6 +14,7 @@ from .serializer import (
     PasswordRestTokenSeriailzer, 
     ChangePasswordSerailzer,
     FinishSignupSerializer,
+    UserProfileSerializer,
     QualificationSerializer,
     CustomUserDetailSerializer,
     TransactionSerializer,
@@ -71,22 +72,30 @@ from django_filters.rest_framework import DjangoFilterBackend
 from ey_backend.chapa import Chapa
 import uuid
 
-class MeProfileView(RetrieveAPIView):
-    serializer_class = CustomUserDetailSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
-
-class MeProfileUpdateView(UpdateAPIView):
-    serializer_class = CustomUserDetailSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
+# endpoint for current user – supports GET, PATCH/PUT, DELETE
+class MeProfileView(RetrieveUpdateDestroyAPIView):
+    def get_serializer_class(self):
+        if self.request.method in ["GET"]:
+            return CustomUserDetailSerializer
+        return UserProfileSerializer
     
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+    # alias for partial update so frontend can POST as before if needed
     def post(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.delete()
+        return Response({"detail": "User account deleted."}, status=status.HTTP_204_NO_CONTENT)
+
+# legacy view kept for clients that still POST to /users/me/update/
+class MeProfileUpdateView(MeProfileView):
+    pass
 
 class UserByIDView(RetrieveAPIView):
     queryset = MyUser.objects.all()
