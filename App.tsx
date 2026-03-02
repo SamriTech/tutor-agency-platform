@@ -14,6 +14,7 @@ import RequestConfirmationPage from './pages/parent/RequestConfirmationPage';
 import TutorRegistrationPage from './pages/tutor/TutorRegistrationPage';
 import ParentProfilePage from './pages/parent/ParentProfilePage';
 import RequestStatusPage from './pages/parent/RequestStatusPage';
+import FindTutorsPage from './pages/parent/FindTutorsPage';
 import EditTutorProfilePage from './pages/tutor/EditProfilePage';
 import PaymentSettingsPage from './pages/tutor/PaymentSettingsPage';
 import MySessionsPage from './pages/tutor/MySessionsPage';
@@ -38,6 +39,7 @@ const App: React.FC = () => {
           {/* PARENT */}
           <Route path="/parent/dashboard" element={<ParentDashboardPage />} />
           <Route path="/parent/profile" element={<ParentProfilePage />} />
+          <Route path="/parent/find-tutors" element={<FindTutorsPage />} />
           <Route path="/parent/request-status" element={<RequestStatusPage />} />
           <Route path="/tutor/:id" element={<TutorProfilePage />} />
           <Route path="/request-confirmation/:tutorId" element={<RequestConfirmationPage />} />
