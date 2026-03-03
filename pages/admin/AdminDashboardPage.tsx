@@ -1,17 +1,37 @@
 
-import React, { useContext } from 'react';
+import React, { useState } from 'react';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import { useAuthStore } from '@/store/authStore';
-import { COMMISSIONS, TUTORS } from '../../constants';
-import { TutorStatus, Role } from '../../types';
+import { COMMISSIONS, TUTORS, SESSIONS } from '../../constants';
+import { TutorStatus, Role, Session } from '../../types';
 import { AuthGuard } from '../../features/auth/AuthGuard';
 import { RoleGuard } from '../../features/auth/RoleGuard';
+import VerificationQueue from '../../components/admin/VerificationQueue';
+import SessionMonitor from '../../components/admin/SessionMonitor';
+import SessionDetailModal from '../../components/admin/SessionDetailModal';
+import { adminApi } from '../../features/admin/api';
 
 const AdminDashboardPage: React.FC = () => {
   const user = useAuthStore(state => state.user);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
   const pendingTutors = TUTORS.filter(t => t.status === TutorStatus.Pending);
+  const topTutors = [...TUTORS].sort((a, b) => b.rating - a.rating).slice(0, 5);
+
+  const handleVerify = async (id: string, approved: boolean) => {
+    try {
+      await adminApi.verifyTutor(id, approved);
+      console.log(`Tutor ${id} ${approved ? 'approved' : 'rejected'}`);
+    } catch (error) {
+      console.error('Verification failed:', error);
+    }
+  };
+
+  const handleViewSession = (sessionId: string) => {
+    const session = SESSIONS.find(s => s.id === sessionId);
+    if (session) setSelectedSession(session);
+  };
 
   return (
     <div className="bg-neutral-100 min-h-screen">
@@ -73,13 +93,13 @@ const AdminDashboardPage: React.FC = () => {
             {/* Tutor Verification Queue */}
             <section>
               <h2 className="text-xl font-bold mb-4">Tutor Verification Queue</h2>
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                {pendingTutors.length > 0 ? (
-                  <p>{pendingTutors.length} tutors waiting for approval.</p>
-                ) : (
-                  <p className="text-neutral-500">No tutors are currently pending verification. Great job!</p>
-                )}
-              </div>
+              <VerificationQueue tutors={pendingTutors} onVerify={handleVerify} />
+            </section>
+
+            {/* Session Monitoring */}
+            <section>
+              <h2 className="text-xl font-bold mb-4">Session Monitoring</h2>
+              <SessionMonitor sessions={SESSIONS} onViewDetails={handleViewSession} />
             </section>
           </div>
 
@@ -87,12 +107,15 @@ const AdminDashboardPage: React.FC = () => {
           <aside>
             <h2 className="text-xl font-bold mb-4">Top Performing Tutors</h2>
             <div className="bg-white rounded-lg shadow-sm p-4 space-y-4">
-              {TUTORS.slice(0, 4).sort((a, b) => b.rating - a.rating).map(tutor => (
+              {topTutors.map((tutor, index) => (
                 <div key={tutor.id} className="flex items-center space-x-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </div>
                   <img className="w-10 h-10 rounded-full" src={tutor.avatarUrl} alt={tutor.name} />
                   <div>
                     <p className="font-semibold text-sm">{tutor.name}</p>
-                    <p className="text-xs text-neutral-500">Rating: {tutor.rating}</p>
+                    <p className="text-xs text-neutral-500">⭐ {tutor.rating} ({tutor.reviews} reviews)</p>
                   </div>
                 </div>
               ))}
@@ -101,6 +124,7 @@ const AdminDashboardPage: React.FC = () => {
         </div>
       </main>
       <Footer />
+      <SessionDetailModal session={selectedSession} onClose={() => setSelectedSession(null)} />
     </div>
   );
 };
