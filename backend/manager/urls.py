@@ -9,4 +9,6 @@ urlpatterns = [
     # Qualification Verification
     path('verifications/qualifications/', views.PendingQualificationListView.as_view(), name='admin_pending_qualifications'),
     path('verifications/qualifications/<int:id>/', views.QualificationVerificationDetailView.as_view(), name='admin_qualification_verify'),
+
+    path('recommend/', views.RecommendTutorView.as_view(), name='ai_recommend'),
 ]

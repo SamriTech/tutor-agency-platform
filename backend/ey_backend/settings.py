@@ -27,9 +27,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True if os.getenv("DEBUG") == "TRUE" else False  
+# 1. Update the Debug check to handle quotes if they exist in .env
+DEBUG = os.getenv("DEBUG", "FALSE").strip('"') == "TRUE"
 
-ALLOWED_HOSTS = []
+# 2. Add your local address so the server is allowed to run
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+
+# 3. Use the / operator for a cleaner Path definition
+STATIC_ROOT = BASE_DIR / os.getenv("STATIC_ROOT", "staticfiles")
 
 
 # Application definition
@@ -240,7 +245,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = Path.joinpath(BASE_DIR, os.getenv("STATIC_ROOT"))
-MEDIA_ROOT = Path.joinpath(BASE_DIR,os.getenv("MEDIA_ROOT"))
+# The second argument "media" is the fallback if the env var is missing
+MEDIA_ROOT = BASE_DIR / os.getenv("MEDIA_ROOT", "media")
 MEDIA_URL = "media/"
 
 # Default primary key field type
