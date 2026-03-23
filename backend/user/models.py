@@ -4,16 +4,26 @@ from phonenumber_field.modelfields import PhoneNumberField
 from allauth.account.adapter import generate_user_code
 from django.utils import timezone
 # Create your models here.
-
+LEAD_PRICES = {
+    "High": 30.00,
+    "Medium": 20.00,
+    "Low": 10.00
+}
 class Expertise(models.Model):
     name = models.CharField(max_length=100, unique=True)
     def __str__(self):
         return self.name
 class Subject(models.Model):
+    TYPE_CHOICES = [
+        ("subject","subject"),
+        ('grade',"grade")
+    ]
     name = models.CharField(max_length=100, unique=True)
+    type = models.CharField(max_length=225,choices=TYPE_CHOICES,default="subject")
     def __str__(self):
         return self.name
-
+    class Meta:
+        ordering = ['name']
 class MyManager(UserManager):
     def create_user(self,username,email,password=None,**extra_fields):
         if not username:
@@ -45,23 +55,32 @@ class MyUser(AbstractUser):
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
     location = models.CharField(max_length=255,blank=True)
+    subject = models.ManyToManyField(Subject, blank=True)
+    pending_phone_number = PhoneNumberField(max_length=15, null=True, blank=True)
     
     objects = MyManager()
     USERNAME_FIELD = "username"
 
 class StudentProfile(models.Model):
     user = models.OneToOneField(MyUser, on_delete=models.CASCADE, related_name='student_profile')
-    grade_level = models.CharField(max_length=50, blank=True, null=True)
+    grade_level = models.ForeignKey(Subject, on_delete=models.SET_NULL,null=True)
 
     def __str__(self):
         return f"Student Profile for {self.user.username}"
 
 class TutorProfile(models.Model):
+    VERIFICATION_STATUS = [
+        ('none', 'None'),
+        ('pending', 'Pending'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
+    ]
     user = models.OneToOneField(MyUser, on_delete=models.CASCADE, related_name='tutor_profile')
     bio = models.TextField(blank=True, null=True)
-    subject = models.ManyToManyField(Subject)
+    grade = models.ManyToManyField(Subject, blank=True)
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     id_photo = models.ImageField(upload_to='users/ids/', null=True, blank=True)
+    id_verification_status = models.CharField(max_length=20, choices=VERIFICATION_STATUS, default='none')
     title = models.CharField(max_length=100, null=True, blank=True, help_text="e.g. Physics Specialist")
     expertise = models.ManyToManyField(Expertise, blank=True, related_name='tutor_profiles')
 
@@ -88,10 +107,24 @@ class Qualification(models.Model):
     link = models.URLField(blank=True, null=True)
     pdf = models.FileField(upload_to='qualifications/pdfs/', blank=True, null=True)
     word_doc = models.FileField(upload_to='qualifications/docs/', blank=True, null=True)
-
+    position = models.PositiveIntegerField(blank=True,null=True,default=0)
     def __str__(self):
         return f"{self.type.title()} of {self.tutor.user.username}: {self.title} ({self.status})"
-
+    def save(self, *args, **kwargs):
+        if not self.position:
+            max_pos = Qualification.objects.filter(tutor=self.tutor).aggregate(
+                models.Max('position')
+            )['position__max'] or 0
+            self.position = max_pos + 1
+        super().save(*args, **kwargs)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tutor', 'position'], 
+                name='unique_qualification_position'
+            )
+        ]
+        ordering = ['position']
 class QualificationImage(models.Model):
     qualification = models.ForeignKey(Qualification, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='qualifications/images/')
@@ -105,6 +138,7 @@ class Review(models.Model):
 
     class Meta:
         unique_together = ('reviewer', 'reviewee')
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"Review from {self.reviewer.username} to {self.reviewee.username}: {self.rating}"
@@ -157,10 +191,45 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type} of {self.amount} for {self.user.username} ({self.status})"
-
+    class Meta:
+        ordering = ["-created_at"]
 def generate_token():
     return generate_user_code(50)
 class PasswordResetToken(models.Model):
     otp = models.ForeignKey(OTP,on_delete=models.CASCADE)
     code =models.CharField(max_length=200,default=generate_token) 
     expire_date = models.DateTimeField(default=expire_time)
+
+class ConnectionTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('buy', 'Buy Connections'),
+        ('usage', 'Connection Usage'),
+    ]
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='connection_transactions')
+    amount = models.IntegerField()
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.transaction_type} of {self.amount} for {self.user.username}"
+
+
+class TutoringRequest(models.Model):
+    parent = models.ForeignKey(MyUser, on_delete=models.CASCADE)
+    tutor = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='requests')
+    description = models.TextField(default="need a tutor")  
+    created_at = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+    seen = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.parent.username} - {self.tutor.subject.first().name}"
+    
+class LeadUnlock(models.Model):
+    tutor = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='unlocked_leads')
+    lead = models.ForeignKey(TutoringRequest, on_delete=models.CASCADE, related_name='purchased_by')
+    unlocked_at = models.DateTimeField(default=timezone.now)
+    price_paid = models.DecimalField(max_digits=6, decimal_places=2)
+
+    class Meta:
+        unique_together = ('tutor', 'lead') 

@@ -17,7 +17,9 @@ export interface Expertise {
 }
 
 export interface StudentProfile {
-  grade_level: string | null;
+  grade_level: number | null;
+  grade_level_name?: string;
+  grade_level_id?: number;
 }
 
 export interface TutorProfile {
@@ -25,8 +27,11 @@ export interface TutorProfile {
   subject: Subject[];
   hourly_rate: string | null;
   id_photo: string | null;
+  id_verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
   title: string | null;
   expertise: Expertise[];
+  qualifications?: Qualification[];
+  availabilities?: Availability[];
 }
 
 export interface User {
@@ -39,11 +44,18 @@ export interface User {
   photo: string | null;
   location: string;
   phone_number: string | null;
+  pending_phone_number?: string | null;
   is_phone_verified: boolean;
   is_id_verified: boolean;
+  id_verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
   balance: string;
   student_profile?: StudentProfile | null;
   tutor_profile?: TutorProfile | null;
+  subject?: Subject[];
+  rating: number;
+  reviews_count: number;
+  reviews_received?: Review[];
+  match_score?: number;
   // UI/Legacy compatibility
   name?: string;
   avatarUrl?: string;
@@ -103,8 +115,6 @@ export interface Tutor extends User {
   expertise?: Expertise[];
   id_photo: string | null;
   // UI/Computed/Mock fields
-  rating?: number;
-  reviews_count?: number;
   reviews?: number;
   bio?: string;
   status?: TutorStatus | string;
@@ -167,6 +177,7 @@ export interface Transaction {
 export interface Review {
   id: number;
   reviewer: number;
+  reviewer_name: string;
   reviewee: number;
   rating: number;
   comment: string | null;

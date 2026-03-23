@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import TutorCard from '../../components/cards/TutorCard';
-import { TUTORS } from '../../backend/frontend/constants';
+import { useTutorFilterStore } from '../../store/tutorFilterStore';
+import { useFindTutors } from '../../features/parent/hooks/useFindTutors';
+import { useSubjects } from '../../features/auth/hooks/useSubjects';
 import ChevronDownIcon from '../../components/icons/ChevronDownIcon';
+import { Role } from '../../types';
 
 const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -12,29 +15,34 @@ const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const FindTutorsPage: React.FC = () => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedSubject, setSelectedSubject] = useState('All Subjects');
-    const [selectedGrade, setSelectedGrade] = useState('All Grades');
+    const {
+        searchQuery,
+        selectedSubject,
+        location,
+        setSearchQuery,
+        setSelectedSubject,
+        setLocation,
+        resetFilters
+    } = useTutorFilterStore();
 
-    const subjects = ['All Subjects', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Programming'];
-    const grades = ['All Grades', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'University'];
-
-    const filteredTutors = TUTORS.filter(tutor => {
-        const matchesQuery = tutor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            tutor.subjects.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchesSubject = selectedSubject === 'All Subjects' || tutor.subjects.includes(selectedSubject);
-        // Assuming grade might be in bio or just filtering by subject for now as MOCK_TUTORS don't have explicit grade list
-        return matchesQuery && matchesSubject;
+    const { data: { results: subjects } = { results: [] } } = useSubjects();
+    const { data: tutorsData, isLoading } = useFindTutors({
+        role: Role.Tutor,
+        subject: selectedSubject,
+        search: searchQuery,
+        location: location
     });
 
     const categories = [
-        { name: 'Mathematics', icon: '📐' },
-        { name: 'Science', icon: '🧬' },
-        { name: 'Languages', icon: '🌍' },
-        { name: 'Programming', icon: '💻' },
-        { name: 'Art', icon: '🎨' },
-        { name: 'Music', icon: '🎸' }
+        { name: 'Mathematics', icon: '📐', id: subjects?.find(s => s.name === 'Mathematics')?.id },
+        { name: 'Science', icon: '🧬', id: subjects?.find(s => s.name === 'Science' || s.name === 'Physics')?.id },
+        { name: 'Languages', icon: '🌍', id: subjects?.find(s => s.name === 'English')?.id },
+        { name: 'Programming', icon: '💻', id: subjects?.find(s => s.name === 'Programming' || s.name === 'Computer Science')?.id },
+        { name: 'Art', icon: '🎨', id: subjects?.find(s => s.name === 'Art')?.id },
+        { name: 'Music', icon: '🎸', id: subjects?.find(s => s.name === 'Music')?.id }
     ];
+
+    const filteredTutors = tutorsData?.results || [];
 
     return (
         <div className="bg-white min-h-screen flex flex-col">
@@ -61,13 +69,27 @@ const FindTutorsPage: React.FC = () => {
                             <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-neutral-100 bg-neutral-50/50">
                                 <select
                                     className="bg-transparent focus:outline-none text-neutral-700 font-medium cursor-pointer"
-                                    value={selectedSubject}
-                                    onChange={(e) => setSelectedSubject(e.target.value)}
+                                    value={selectedSubject || ''}
+                                    onChange={(e) => setSelectedSubject(e.target.value ? parseInt(e.target.value) : null)}
                                 >
-                                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                    <option value="">All Subjects</option>
+                                    {subjects?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
-                            <button className="bg-primary text-white font-bold px-8 py-4 hover:bg-primary-dark transition-colors shrink-0">
+                            <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-neutral-100">
+                                <span className="text-neutral-400 mr-2">📍</span>
+                                <input
+                                    type="text"
+                                    placeholder="Location (e.g. Bole)"
+                                    className="bg-transparent focus:outline-none text-neutral-800 w-32"
+                                    value={location}
+                                    onChange={(e) => setLocation(e.target.value)}
+                                />
+                            </div>
+                            <button
+                                onClick={() => {/* Search is reactive, but we can put something here if needed */ }}
+                                className="bg-primary text-white font-bold px-8 py-4 hover:bg-primary-dark transition-colors shrink-0"
+                            >
                                 Search
                             </button>
                         </div>
@@ -92,8 +114,12 @@ const FindTutorsPage: React.FC = () => {
             <div className="border-b border-neutral-200 sticky top-[72px] bg-white z-40">
                 <div className="container mx-auto px-4">
                     <div className="flex items-center space-x-8 overflow-x-auto no-scrollbar py-4">
-                        {categories.map(cat => (
-                            <button key={cat.name} className="flex items-center space-x-2 whitespace-nowrap text-neutral-600 hover:text-primary transition-colors group">
+                        {categories?.map(cat => (
+                            <button
+                                key={cat.name}
+                                onClick={() => cat.id && setSelectedSubject(cat.id)}
+                                className={`flex items-center space-x-2 whitespace-nowrap transition-colors group ${selectedSubject === cat.id ? 'text-primary' : 'text-neutral-600 hover:text-primary'}`}
+                            >
                                 <span className="text-xl group-hover:scale-110 transition-transform">{cat.icon}</span>
                                 <span className="font-medium">{cat.name}</span>
                             </button>
@@ -118,9 +144,9 @@ const FindTutorsPage: React.FC = () => {
                     </div>
                 </div>
 
-                {filteredTutors.length > 0 ? (
+                {filteredTutors?.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {filteredTutors.map(tutor => (
+                        {filteredTutors?.map(tutor => (
                             <TutorCard key={tutor.id} tutor={tutor} />
                         ))}
                     </div>
@@ -130,7 +156,7 @@ const FindTutorsPage: React.FC = () => {
                         <h3 className="text-xl font-bold text-neutral-900 mb-2">No tutors found</h3>
                         <p className="text-neutral-500 max-w-sm mx-auto">Try adjusting your filters or search query to find what you're looking for.</p>
                         <button
-                            onClick={() => { setSearchQuery(''); setSelectedSubject('All Subjects'); }}
+                            onClick={() => resetFilters()}
                             className="mt-6 text-primary font-bold hover:underline"
                         >
                             Clear all filters

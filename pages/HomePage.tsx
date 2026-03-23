@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/ui/Header';
 import Footer from '../components/ui/Footer';
-import { GRADE_LEVELS, SUBJECTS } from '../constants';
 import { ParentRequest, Role } from '../types';
 import CheckCircleIcon from '../components/icons/CheckCircleIcon';
 import { useAuthStore } from '../store/authStore';
+import { useTutorFilterStore } from '../store/tutorFilterStore';
+import { useSubjects } from '../features/auth/hooks/useSubjects';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,22 +15,38 @@ const HomePage: React.FC = () => {
   // If user is already logged in, redirect them to their respective dashboard
   if (user) {
     if (user.role === Role.Tutor) {
-      return <Navigate to="/tutor/dashboard" replace />;
+      navigate("/tutor/dashboard", { replace: true });
     } else if (user.role === Role.Parent) {
-      return <Navigate to="/parent/dashboard" replace />;
+      navigate("/parent/dashboard", { replace: true });
     } else if (user.role === Role.Admin) {
-      return <Navigate to="/admin/dashboard" replace />;
+      navigate("/admin/dashboard", { replace: true });
     }
   }
 
+  const { data: subjectsData } = useSubjects();
+  const { data: gradesData } = useSubjects('grade');
+
+  const subjects = subjectsData?.results || [];
+  const grades = gradesData?.results || [];
+
   const [request, setRequest] = useState<ParentRequest>({
-    gradeLevel: GRADE_LEVELS[0],
-    subject: SUBJECTS[0],
+    gradeLevel: '',
+    subject: '',
     mode: 'in-person',
     location: '',
     budget: 500,
     notes: ''
   });
+
+  // Set defaults when data arrives
+  React.useEffect(() => {
+    if (subjects.length > 0 && !request.subject) {
+      setRequest(prev => ({ ...prev, subject: subjects[0].name }));
+    }
+    if (grades.length > 0 && !request.gradeLevel) {
+      setRequest(prev => ({ ...prev, gradeLevel: grades[0].name }));
+    }
+  }, [subjects, grades]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -42,9 +59,13 @@ const HomePage: React.FC = () => {
 
   const handleFindTutor = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Parent Request:', request);
-    // In a real app, you'd save this request. For now, navigate to a status page.
-    navigate('/parent/request-status');
+    const query = new URLSearchParams({
+      subject: request.subject,
+      grade_level: request.gradeLevel,
+      location: request.location,
+      mode: request.mode
+    }).toString();
+    navigate(`/guest/tutors?${query}`);
   };
 
   return (
@@ -110,29 +131,21 @@ const HomePage: React.FC = () => {
                   <div>
                     <label htmlFor="subject" className="block text-sm font-medium text-neutral-700">Subject</label>
                     <select id="subject" name="subject" value={request.subject} onChange={handleInputChange} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-neutral-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
-                      {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+                      {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <label htmlFor="gradeLevel" className="block text-sm font-medium text-neutral-700">Student's Grade Level</label>
                     <select id="gradeLevel" name="gradeLevel" value={request.gradeLevel} onChange={handleInputChange} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-neutral-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
-                      {GRADE_LEVELS.map(g => <option key={g}>{g}</option>)}
+                      {grades.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                     </select>
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">Session Mode</label>
-                  <div className="flex rounded-md shadow-sm">
-                    <button type="button" onClick={() => handleModeChange('in-person')} className={`flex-1 px-4 py-2 text-sm rounded-l-md border ${request.mode === 'in-person' ? 'bg-primary text-white border-primary' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'}`}>In-Person</button>
-                    <button type="button" onClick={() => handleModeChange('online')} className={`flex-1 px-4 py-2 text-sm rounded-r-md border-t border-b border-r ${request.mode === 'online' ? 'bg-primary text-white border-primary' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'}`}>Online</button>
-                  </div>
+                  <label htmlFor="location" className="block text-sm font-medium text-neutral-700">Location (Neighborhood/Area)</label>
+                  <input type="text" name="location" id="location" value={request.location} onChange={handleInputChange} className="ps-3 py-2 mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-neutral-300 rounded-md" placeholder="e.g., Bole, Addis Ababa" />
                 </div>
-                {request.mode === 'in-person' && (
-                  <div>
-                    <label htmlFor="location" className="block text-sm font-medium text-neutral-700">Location (Neighborhood/Area)</label>
-                    <input type="text" name="location" id="location" value={request.location} onChange={handleInputChange} className="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-neutral-300 rounded-md" placeholder="e.g., Bole, Addis Ababa" />
-                  </div>
-                )}
                 <div>
                   <label htmlFor="budget" className="block text-sm font-medium text-neutral-700">Max Hourly Budget (ETB)</label>
                   <input type="range" min="100" max="2000" step="50" name="budget" id="budget" value={request.budget} onChange={handleInputChange} className="mt-1 w-full h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-primary" />

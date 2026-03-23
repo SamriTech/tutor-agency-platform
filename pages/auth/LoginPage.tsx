@@ -9,36 +9,30 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { mutate } = useResendOtp()
+  const { mutateAsync } = useResendOtp()
   const loginMutation = useLogin();
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
     setError("");
-
     if (!username || !password) {
       setError("Please enter username and password.");
       return;
     }
-
-    try {
-      const res = await loginMutation.mutateAsync({ username, password });
-      const user = res.data.user;
-
+    loginMutation.mutateAsync({ username, password });
+    if (loginMutation.isSuccess) {
+      let user = loginMutation.data?.data?.user;
+      if (!user.tutor_profile && !user.student_profile) {
+        navigate('/finish-signup');
+        return;
+      }
       if (!user.is_phone_verified) {
-        mutate()
+        mutateAsync()
         navigate('/verify-phone');
         return;
       }
-
-      switch (user.role) {
-        case Role.Parent: navigate('/parent/dashboard'); break;
-        case Role.Tutor: navigate('/tutor/dashboard'); break;
-        case Role.Admin: navigate('/admin/dashboard'); break;
-        default: navigate('/');
-      }
-    } catch (err: any) {
-      setError(getErrorMessage(err));
+      navigate('/parent/dashboard');
+    } else if (loginMutation.isError) {
+      setError("Invalid username or password");
     }
   };
 
@@ -57,7 +51,7 @@ const LoginPage: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleLogin}>
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleLogin(e) }}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-neutral-700">
                 Username or Phone
@@ -98,9 +92,9 @@ const LoginPage: React.FC = () => {
 
             <div className="flex items-center justify-between">
               <div className="text-sm">
-                <a href="#" className="font-medium text-primary hover:text-primary-light">
+                <Link to="/change-password" className="font-medium text-primary hover:text-primary-light">
                   Forgot your password?
-                </a>
+                </Link>
               </div>
             </div>
 

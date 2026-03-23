@@ -26,7 +26,8 @@ const RegisterPage: React.FC = () => {
 
     const data = {
       role,
-      name: formData.get('name') as string,
+      first_name: formData.get('first_name') as string,
+      last_name: formData.get('last_name') as string,
       username: formData.get('username') as string,
       email: formData.get('email') as string,
       phone_number: formData.get('phone_number') as string,
@@ -42,7 +43,6 @@ const RegisterPage: React.FC = () => {
       setError(getErrorMessage(err));
     }
   };
-  console.log(error)
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -79,13 +79,17 @@ const RegisterPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-neutral-700">Full Name</label>
-                <input id="name" name="name" type="text" required className="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
+                <label htmlFor="firstname" className="block text-sm font-medium text-neutral-700">First Name</label>
+                <input id="firstname" name="first_name" type="text" required className="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
               </div>
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-neutral-700">Username</label>
-                <input id="username" name="username" type="text" required className="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
+                <label htmlFor="lastname" className="block text-sm font-medium text-neutral-700">Last Name</label>
+                <input id="lastname" name="last_name" type="text" required className="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
               </div>
+            </div>
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-neutral-700">Username</label>
+              <input id="username" name="username" type="text" required className="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
             </div>
 
             <div>

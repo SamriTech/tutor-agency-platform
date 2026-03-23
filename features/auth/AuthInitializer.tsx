@@ -3,12 +3,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { api } from "@/lib/api/axios"; // axios instance
 import { useResendOtp } from "./hooks";
+
+
+const authFlowPages = ["/verify-phone", "/finish-signup", "/login", "/register"];
+
+
 const AuthInitializer = () => {
-  const { setUser } = useAuthStore();
-  const logout = useAuthStore(state => state.logout);
+  const { setUser, logout, user } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const resendMutation = useResendOtp();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -16,23 +19,23 @@ const AuthInitializer = () => {
         const res = await api.get("api/auth/user/");
         const user = res.data;
         setUser(user);
-
-        // Define pages that are part of the auth flow and shouldn't trigger redirection
-        const authFlowPages = ["/verify-phone", "/finish-signup", "/login", "/register"];
-
-        if (user && !user.is_phone_verified && !authFlowPages.includes(location.pathname)) {
-          resendMutation.mutate()
-          navigate('/verify-phone');
-        }
-
       } catch (error) {
         logout(); // important → marks initialized true
       }
     };
-
-    initAuth();
+    if (!user) {
+      initAuth();
+    }
+    if (user) {
+      if (!authFlowPages.includes(location.pathname)) {
+        if (!user?.tutor_profile && !user?.student_profile) {
+          navigate(`/finish-signup?path=${location.pathname}`);
+        } else if (!user?.is_phone_verified) {
+          navigate(`/verify-phone?path=${location.pathname}`);
+        }
+      }
+    }
   }, [setUser, logout, navigate, location.pathname]);
-
   return null;
 };
 

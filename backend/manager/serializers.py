@@ -6,8 +6,8 @@ class AdminUserVerificationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = MyUser
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'id_photo', 'is_id_verified']
-        read_only_fields = ['id', 'username', 'first_name', 'last_name', 'email', 'id_photo']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'id_photo', 'is_id_verified', 'is_active', 'role']
+        read_only_fields = ['id', 'username', 'first_name', 'last_name', 'email', 'id_photo', 'role']
 
 class AdminQualificationImageSerializer(serializers.ModelSerializer):
     class Meta:

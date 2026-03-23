@@ -1,14 +1,14 @@
+from decimal import Decimal
 from django.shortcuts import render
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 from rest_framework import status
 from dj_rest_auth.jwt_auth import set_jwt_cookies
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.decorators import permission_classes, authentication_classes, api_view
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from .models import (OTP, PasswordResetToken, Qualification, 
-                    MyUser, Transaction, Availability, Expertise)
-from rest_framework.response import Response
+                    MyUser, Transaction, Availability, Expertise, Subject,
+                    TutoringRequest,LeadUnlock,LEAD_PRICES,Review)
 from .serializer import (
     CustomPasswordResetSerializer, 
     PasswordRestTokenSeriailzer, 
@@ -18,15 +18,25 @@ from .serializer import (
     CustomUserDetailSerializer,
     TransactionSerializer,
     AvailabilitySerializer,
-    ExpertiseSerializer
+    ExpertiseSerializer,
+    SubjectSerializer,
+    ProfileChangePasswordSerializer,
+    PhoneChangeRequestSerializer,
+    PhoneChangeVerifySerializer,
+    TutoringRequestSerializer,
+    ReviewSerializer
 )
+from rest_framework.response import Response
 from dj_rest_auth.registration.views import RegisterView
-from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from .utils import verify_phone_util
 from .adapter import CustomAccountAdapter
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django.db.models import Case, When
+from .ai_utils import TutorMatcher
+from django_filters.rest_framework import DjangoFilterBackend
+from ey_backend.chapa import Chapa
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
@@ -68,7 +78,8 @@ class ResendOTPView(GenericAPIView):
         }, status=status.HTTP_200_OK)
 from .adapter import CustomAccountAdapter
 from django_filters.rest_framework import DjangoFilterBackend
-from ey_backend.chapa import Chapa
+from rest_framework.filters import SearchFilter
+from allauth.account.models import EmailAddress
 import uuid
 
 class MeProfileView(RetrieveAPIView):
@@ -147,13 +158,42 @@ class UserAvailabilityView(ListAPIView):
         return Availability.objects.filter(tutor__user_id=user_id)
 
 # Expertise Views
-class ExpertiseListView(ListAPIView):
+class ExpertiseListView(ListCreateAPIView):
     queryset = Expertise.objects.all()
     serializer_class = ExpertiseSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = {'name': ['icontains', 'exact']}
+
+class SubjectListView(ListAPIView):
+    queryset = Subject.objects.all()
+    serializer_class = SubjectSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = {'name': ['icontains', 'exact']}
 
+    def list(self,request,*args,**kwargs):
+        test = request.GET.get('type')
+        if(test == "grade"):
+            queryset = self.get_queryset().filter(type="grade")
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        elif (test=="All"):
+            return super().list(request, *args, **kwargs)
+        else:
+            queryset = self.get_queryset().filter(type="subject")
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
 class BalanceTransactionView(GenericAPIView):
     permission_classes = [IsAuthenticated]
 
@@ -191,7 +231,8 @@ class DepositView(GenericAPIView):
             first_name=user.first_name or user.username,
             last_name=user.last_name or "",
             tx_ref=tx_ref,
-            callback_url=request.build_absolute_uri(f"/api/auth/wallet/verify/{tx_ref}/")
+            callback_url=request.build_absolute_uri("/api/auth/wallet/webhook/"),
+            return_url="http://localhost:3000/wallet/history"
         )
         
         if res.get("status") == "success":
@@ -221,15 +262,43 @@ class PaymentVerifyView(GenericAPIView):
                 transaction.save()
                 
                 user = transaction.user
-                user.balance += transaction.amount
+                user.balance += Decimal(transaction.amount)
                 user.save()
                 
                 return Response({"status": "success", "message": "Payment verified and balance updated."})
             return Response({"status": "success", "message": "Transaction already processed."})
         else:
-            transaction.status = 'failed'
-            transaction.save()
+            # Only mark as failed if it's not already success (webhook might have won)
+            if transaction.status == 'pending':
+                transaction.status = 'failed'
+                transaction.save()
             return Response({"status": "error", "message": "Payment verification failed."}, status=400)
+
+class ChapaWebhookView(GenericAPIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        tx_ref = data.get("tx_ref")
+        
+        if not tx_ref:
+            return Response({"status": "failed"}, status=400)
+            
+        res = Chapa.verify_transaction(tx_ref)
+        if res.get("status") == "success" and res["data"]["status"] == "success":
+            try:
+                transaction = Transaction.objects.get(reference=tx_ref)
+                if transaction.status == 'pending':
+                    transaction.status = 'success'
+                    transaction.save()
+                    
+                    user = transaction.user
+                    user.balance += Decimal(transaction.amount)
+                    user.save()
+            except Transaction.DoesNotExist:
+                pass
+        
+        return Response({"status": "handled"})
 
 class WithdrawView(GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -244,7 +313,7 @@ class WithdrawView(GenericAPIView):
             return Response({"error": "Missing required fields."}, status=400)
         
         user = request.user
-        if user.balance < float(amount):
+        if user.balance < Decimal(amount):
             return Response({"error": "Insufficient balance."}, status=400)
         
         tx_ref = f"wd-{uuid.uuid4()}"
@@ -258,7 +327,7 @@ class WithdrawView(GenericAPIView):
         )
         
         if res.get("status") == "success":
-            user.balance -= float(amount)
+            user.balance -= Decimal(amount)
             user.save()
             
             Transaction.objects.create(
@@ -275,15 +344,81 @@ class WithdrawView(GenericAPIView):
 class UserListView(ListAPIView):
     queryset = MyUser.objects.all()
     serializer_class = CustomUserDetailSerializer
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = {
         'role': ['exact'],
-        'tutor_profile__subject': ['exact'],
+        'subject': ['exact'],
         'location': ['icontains', 'exact'],
         'tutor_profile__expertise': ['exact']
     }
+    search_fields = [
+        'username', 
+        'first_name', 
+        'last_name', 
+        'tutor_profile__bio', 
+        'tutor_profile__title', 
+        'subject__name',
+        'tutor_profile__expertise__name',
+        'tutor_profile__qualifications__title',
+        'tutor_profile__qualifications__description'
+    ]
     permission_classes = [AllowAny]
 
+    def list(self, request, *args, **kwargs):
+        matched = request.query_params.get('matched') == 'true'
+        role = request.query_params.get('role', 'tutor')
+        
+        if matched:
+            # Check if user is tutor - tutors don't get AI matching for themselves
+            if request.user.is_authenticated and request.user.role == 'tutor':
+                return super().list(request, *args, **kwargs)
+
+            # 1. Get filtered base pool (only tutors)
+            queryset = self.filter_queryset(MyUser.objects.filter(role='tutor'))
+            
+            # 2. Extract search params for AI
+            subject_id = request.query_params.get('subject')
+            subject_name = request.query_params.get('search', "")
+            if subject_id:
+                try:
+                    subject_name = Subject.objects.get(id=subject_id).name
+                except Subject.DoesNotExist:
+                    pass
+            
+            search_params = {
+                "subject_name": subject_name,
+                "grade_level": request.query_params.get('grade_level', ""),
+                "location": request.query_params.get('location', ""),
+                "mode": request.query_params.get('mode', "Online")
+            }
+            
+            # 3. Matching
+            matcher = TutorMatcher(queryset, request.user if request.user.is_authenticated else None, search_params)
+            ranked_df = matcher.rank_tutors()
+            
+            if len(ranked_df) == 0:
+                return Response({"count": 0, "results": []})
+
+            # 4. Map back to objects
+            ranked_ids = ranked_df['id'].tolist()
+            # Order queryset by the ranked IDs
+            preserved = Case(*[When(id=pk, then=pos) for pos, pk in enumerate(ranked_ids)])
+            queryset = MyUser.objects.filter(id__in=ranked_ids).order_by(preserved)
+            
+            # 5. Pagination
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                # Inject scores
+                for data, score in zip(serializer.data, ranked_df['match_score'].tolist()):
+                    data['match_score'] = round(score * 100, 1)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+            
+        return super().list(request, *args, **kwargs)
+    
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     callback_url = "http://localhost:3000/auth/callback/google"
@@ -364,6 +499,90 @@ class FinishSignupView(GenericAPIView):
                 "is_phone_verified": user.is_phone_verified
             }
         }, status=200)
+
+class UpdateProfileView(GenericAPIView):
+    serializer_class = FinishSignupSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # Allow updating first_name, last_name, email, username
+        serializer = self.get_serializer(instance=request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        
+        return Response({
+            "status": "success",
+            "message": "Profile updated successfully.",
+            "user": CustomUserDetailSerializer(user).data
+        }, status=200)
+
+class CheckUsernameView(GenericAPIView):
+    permission_classes = [AllowAny]
+    def get(self, request, *args, **kwargs):
+        username = request.query_params.get('username')
+        if not username:
+            return Response({"error": "Username is required"}, status=400)
+        exists = MyUser.objects.filter(username=username).exists()
+        return Response({"exists": exists})
+
+class ProfileChangePasswordView(GenericAPIView):
+    serializer_class = ProfileChangePasswordSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        if not user.check_password(serializer.validated_data['old_password']):
+            return Response({"error": "Incorrect old password"}, status=400)
+            
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+        return Response({"status": "success", "message": "Password changed successfully"})
+
+class RequestPhoneChangeView(GenericAPIView):
+    serializer_class = PhoneChangeRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        new_phone = serializer.validated_data['phone_number']
+        user.pending_phone_number = new_phone
+        user.save()
+        
+        adapter = CustomAccountAdapter()
+        otp_obj, created = OTP.objects.get_or_create(user=user)
+        adapter.send_verification_code_sms(user, str(new_phone), otp_obj.code)
+        
+        return Response({"status": "success", "message": "Verification code sent to new phone number."})
+
+class VerifyPhoneChangeView(GenericAPIView):
+    serializer_class = PhoneChangeVerifySerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        otp_obj = OTP.objects.filter(user=user, code=serializer.validated_data['code'])
+        if not otp_obj.exists():
+            return Response({"error": "Invalid verification code"}, status=400)
+            
+        if not user.pending_phone_number:
+            return Response({"error": "No pending phone number change"}, status=400)
+            
+        user.phone_number = user.pending_phone_number
+        user.pending_phone_number = None
+        user.is_phone_verified = True
+        user.save()
+        otp_obj.delete()
+        
+        return Response({"status": "success", "message": "Phone number updated successfully."})
         
 class VerifyCode(GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -376,3 +595,147 @@ class VerifyCode(GenericAPIView):
             otp_obj.first().delete()
             return Response({"status":"success","message":"Account Verified"}, status=200)
         return verify_phone_util(request, otp_obj, callback)
+
+class TutorRequestView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        tutor_requests = TutoringRequest.objects.filter(tutor=user)
+        serializer = TutoringRequestSerializer(tutor_requests, many=True, context={'request': request})
+        return Response({
+            "tutor_requests": serializer.data
+        })
+class TutorRequestDetailView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request,request_id, *args, **kwargs):
+        user = request.user
+        try:
+            tutor_request = TutoringRequest.objects.get(id=request_id)
+        except TutoringRequest.DoesNotExist:
+            return Response({"status":"error","message":"Request not found"}, status=404)
+        
+        # We allow tutors to see a preview of the request even if not paid.
+        # The serializer will filter out contact information.
+        
+        # Mark as seen when the tutor views it
+        if not tutor_request.seen and tutor_request.tutor == user:
+            tutor_request.seen = True
+            tutor_request.save()
+            
+        serializer = TutoringRequestSerializer(tutor_request, context={'request': request})
+        return Response({
+            "tutor_request": serializer.data
+        })
+class CreateTutorRequest(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def post(self,request,tutor_id, *args, **kwargs):
+        user = request.user
+        tutor = MyUser.objects.get(id=tutor_id)
+        description = request.data.get("description", "need a tutor")
+        obj,created=TutoringRequest.objects.get_or_create(
+            parent=user, 
+            tutor=tutor,
+            defaults={'description': description}
+        )
+        if not created:
+            obj.description = description
+            obj.save()
+            
+        return Response({"status":"success","message":"Tutor request sent successfully", "id": obj.id}, status=200)
+
+class UnlockLeadView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def post(self,request,request_id, *args, **kwargs):
+        user = request.user
+        lead = TutoringRequest.objects.get(id=request_id)
+        if LeadUnlock.objects.filter(tutor=user, lead=lead).exists():
+            return Response({"status":"error","message":"Lead already unlocked"}, status=400)
+        
+        price = LEAD_PRICES.get("Low")
+        if user.balance < price:
+            return Response({"status":"error","message":"Insufficient balance"}, status=400)
+            
+        user.balance -= Decimal(price)
+        user.save()
+        
+        LeadUnlock.objects.create(tutor=user, lead=lead, price_paid=price)
+        
+        # Create a transaction record
+        Transaction.objects.create(
+            user=user,
+            amount=price,
+            transaction_type='payment',
+            status='success',
+            reference=f"unlock-{uuid.uuid4().hex[:8]}"
+        )
+        
+        return Response({"status":"success","message":"Lead unlocked successfully"}, status=200)
+
+class ParentRequestsView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        requests = TutoringRequest.objects.filter(parent=user)
+        serializer = TutoringRequestSerializer(requests, many=True, context={'request': request})
+        return Response({
+            "requests": serializer.data
+        })
+
+class UpdateDeleteBookingView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, request_id, *args, **kwargs):
+        user = request.user
+        tutoring_request = TutoringRequest.objects.get(id=request_id, parent=user)
+        if tutoring_request.seen:
+            return Response({"status":"error","message":"Cannot edit a request that has already been seen by the tutor"}, status=400)
+        
+        description = request.data.get('description')
+        if description:
+            tutoring_request.description = description
+            tutoring_request.save()
+            return Response({"status":"success","message":"Booking updated successfully"}, status=200)
+        return Response({"status":"error","message":"Description is required"}, status=400)
+
+    def delete(self, request, request_id, *args, **kwargs):
+        user = request.user
+        tutoring_request = TutoringRequest.objects.get(id=request_id, parent=user)
+        if tutoring_request.seen:
+            return Response({"status":"error","message":"Cannot cancel a request that has already been seen by the tutor"}, status=400)
+        
+        tutoring_request.delete()
+        return Response({"status":"success","message":"Booking canceled successfully"}, status=200)
+            
+class ReviewListCreateView(ListCreateAPIView):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        reviewer = request.user
+        reviewee_id = request.data.get('reviewee')
+        rating = request.data.get('rating')
+        comment = request.data.get('comment')
+        
+        review, created = Review.objects.update_or_create(
+            reviewer=reviewer,
+            reviewee_id=reviewee_id,
+            defaults={
+                'rating': rating,
+                'comment': comment
+            }
+        )
+        serializer = self.get_serializer(review)
+        status_code = 201 if created else 200
+        return Response(serializer.data, status=status_code)
+
+    def perform_create(self, serializer):
+        # This is fallback for any other creation path, but create() above takes precedence for POST
+        serializer.save(reviewer=self.request.user)
+
+    def get_queryset(self):
+        # Allow filtering by reviewee (tutor)
+        tutor_id = self.request.query_params.get('tutor_id')
+        if tutor_id:
+            return self.queryset.filter(reviewee_id=tutor_id)
+        return self.queryset

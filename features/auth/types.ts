@@ -6,7 +6,8 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
-  name: string;
+  first_name: string;
+  last_name: string;
   username: string;
   email: string;
   phone_number: string;
@@ -22,10 +23,15 @@ export interface VerifyOtpPayload {
 
 export interface CompleteSignupPayload {
   bio?: string;
-  hourly_rate?: string;
+  hourly_rate?: string | number;
   subject?: number[];
   expertise?: number[];
   grade_level?: string;
+  title?: string;
+  id_photo?: File;
+  phone_number?: string;
+  location?: string;
+  role?: Role;
 }
 
 export interface AuthResponse {

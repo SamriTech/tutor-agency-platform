@@ -1,63 +1,121 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { TUTORS } from '../../constants';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import { AuthGuard } from '../../features/auth/AuthGuard';
 import { RoleGuard } from '../../features/auth/RoleGuard';
 import { Role } from '../../types';
+import { useTutorDetails } from '@/features/parent/hooks/useTutorDetails';
+import { useCreateTutoringRequest } from '@/features/auth/hooks/useTutoringRequests';
+
 const RequestConfirmationPage: React.FC = () => {
     const { tutorId } = useParams();
     const navigate = useNavigate();
-    const tutor = TUTORS.find(t => t.id === tutorId);
-    if (!tutor) {
-        return <div>Tutor not found</div>;
-    }
+    const [description, setDescription] = React.useState('');
+    const { data: tutor } = useTutorDetails(tutorId);
+    const createRequestMutation = useCreateTutoringRequest();
+
     const handleConfirm = () => {
-        // Here you would send the request to the backend.
-        // For now, we can show an alert and navigate back to the dashboard.
-        alert('Your request has been sent! The tutor will respond shortly. You will be notified once the admin approves the session details.');
-        navigate('/parent/dashboard');
-    }
+        if (tutorId) {
+            createRequestMutation.mutate({ tutorId, description }, {
+                onSuccess: () => {
+                    navigate('/parent/dashboard');
+                }
+            });
+        }
+    };
+
     return (
-        <div className="bg-neutral-50 min-h-screen">
+        <div className="bg-neutral-50 min-h-screen flex flex-col">
             <Header />
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-10">
                 <div className="max-w-2xl mx-auto">
-                    <h1 className="text-3xl font-bold text-center mb-8">Confirm Your Tutoring Session</h1>
-                    <div className="bg-white rounded-lg shadow-lg p-8">
-                        <div className="flex items-center pb-6 border-b">
-                            <img src={tutor.avatarUrl} alt={tutor.name} className="w-16 h-16 rounded-full" />
-                            <div className="ml-4">
-                                <p className="text-sm text-neutral-500">You are requesting a session with</p>
-                                <h2 className="text-xl font-bold">{tutor.name}</h2>
+                    <h1 className="text-3xl font-black text-center mb-10 tracking-tight text-neutral-900">Confirm Your Tutoring Session</h1>
+
+                    <div className="bg-white rounded-[40px] shadow-2xl shadow-neutral-200/50 p-10 border border-neutral-100 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -mr-16 -mt-16" />
+
+                        {/* Tutor Profile Header */}
+                        <div className="flex items-center pb-8 border-b border-neutral-100">
+                            <div className="w-20 h-20 rounded-[28px] overflow-hidden border-4 border-white shadow-lg">
+                                <img src={tutor?.photo} alt={tutor?.username} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="ml-6">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1">Requesting a session with</p>
+                                <h2 className="text-2xl font-black text-neutral-900">{tutor?.username}</h2>
                             </div>
                         </div>
-                        <div className="py-6 border-b">
-                            <h3 className="font-semibold mb-4 text-neutral-700">Session Details</h3>
-                            <div className="space-y-3 text-sm">
-                                <div className="flex justify-between"><span className="text-neutral-500">Subject:</span><span className="font-medium">Mathematics (Example)</span></div>
-                                <div className="flex justify-between"><span className="text-neutral-500">Grade Level:</span><span className="font-medium">Grade 8 (Example)</span></div>
-                                <div className="flex justify-between"><span className="text-neutral-500">Location:</span><span className="font-medium text-right">In-Person at your home (Bole, Addis Ababa)</span></div>
-                                <div className="flex justify-between items-center text-red-600"><span className="text-neutral-500">Date & Time:</span><span className="font-medium bg-red-100 px-2 py-1 rounded">Pending Admin & Tutor Approval</span></div>
-                                <div className="flex justify-between items-center text-red-600"><span className="text-neutral-500">Meeting Link (Online):</span><span className="font-medium bg-red-100 px-2 py-1 rounded">Available after Approval</span></div>
+
+                        {/* Description Section */}
+                        <div className="py-8 border-b border-neutral-100">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-neutral-900 mb-4">How can the tutor help?</h3>
+                            <p className="text-sm text-neutral-500 mb-4 font-medium">Adding details helps {tutor?.username} understand your needs and prepare effectively.</p>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="e.g., My child needs help with geometry and preparing for the upcoming mid-term exam..."
+                                className="w-full bg-neutral-50 border border-neutral-100 rounded-2xl p-4 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all resize-none min-h-[140px]"
+                            />
+                        </div>
+
+                        {/* Session Details */}
+                        <div className="py-8 border-b border-neutral-100">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-neutral-900 mb-6">Session Details</h3>
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Subject</span>
+                                    <span className="text-sm font-black text-neutral-900 bg-neutral-50 px-3 py-1 rounded-lg border border-neutral-100">Mathematics</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Grade Level</span>
+                                    <span className="text-sm font-black text-neutral-900  bg-neutral-50 px-3 py-1 rounded-lg border border-neutral-100">Grade 8</span>
+                                </div>
+                                <div className="flex justify-between items-start">
+                                    <span className="text-sm font-bold text-neutral-400 uppercase tracking-wider mt-1">Location</span>
+                                    <span className="text-sm font-black text-neutral-900 text-right max-w-[200px]">In-Person at your home (Bole, Addis Ababa)</span>
+                                </div>
                             </div>
                         </div>
-                        <div className="py-6">
-                            <h3 className="font-semibold mb-4 text-neutral-700">Payment Summary</h3>
-                            <div className="space-y-3 text-sm">
-                                <div className="flex justify-between"><span className="text-neutral-500">Tutor's Hourly Rate:</span><span>ETB {tutor.pricePerHour.toFixed(2)}</span></div>
-                                <div className="flex justify-between"><span className="text-neutral-500">Platform Fee:</span><span>ETB 50.00</span></div>
-                                <div className="flex justify-between font-bold text-lg"><span className="text-neutral-800">Total per Hour:</span><span className="text-primary">ETB {(tutor.pricePerHour + 50).toFixed(2)}</span></div>
-                                <p className="text-xs text-neutral-500 pt-2">You will be charged after the session is completed. Payment will be handled via Chapa/Telebirr.</p>
+
+                        {/* Payment Summary */}
+                        <div className="py-8">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-neutral-900 mb-6">Payment Summary</h3>
+                            <div className="space-y-4 bg-neutral-50/50 rounded-3xl p-6 border border-neutral-100">
+                                <div className="flex justify-between text-sm">
+                                    <span className="font-bold text-neutral-400 uppercase tracking-wider">Hourly Rate</span>
+                                    <span className="font-black text-neutral-900">ETB {Number(tutor?.tutor_profile?.hourly_rate).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="font-bold text-neutral-400 uppercase tracking-wider">Service Fee</span>
+                                    <span className="font-black text-neutral-900">ETB 50.00</span>
+                                </div>
+                                <div className="pt-4 border-t border-neutral-200 flex justify-between items-center">
+                                    <span className="text-lg font-black text-neutral-900 uppercase tracking-tight">Total per Hour</span>
+                                    <span className="text-2xl font-black text-primary">ETB {(Number(tutor?.tutor_profile?.hourly_rate) + 50).toFixed(2)}</span>
+                                </div>
+                                <div className="flex items-start gap-2 pt-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                                    <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest leading-relaxed">
+                                        You will be charged after the session is completed.
+                                    </p>
+                                </div>
                             </div>
                         </div>
+
+                        {/* Actions */}
                         <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                            <button onClick={() => navigate(-1)} className="w-full text-center bg-white border border-neutral-300 text-neutral-700 px-6 py-3 rounded-md font-semibold hover:bg-neutral-50 transition-colors">
-                                Cancel Request
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="w-full px-8 py-5 bg-white border-2 border-neutral-900 text-neutral-900 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-neutral-50 transition-all active:scale-[0.98]"
+                            >
+                                Cancel
                             </button>
-                            <button onClick={handleConfirm} className="w-full text-center bg-primary text-white px-6 py-3 rounded-md font-semibold hover:bg-primary-dark transition-colors">
-                                Send Request
+                            <button
+                                onClick={handleConfirm}
+                                disabled={createRequestMutation.isPending}
+                                className="w-full px-8 py-5 bg-primary text-white rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-primary-dark transition-all shadow-xl shadow-primary/25 flex items-center justify-center gap-3 active:scale-[0.98]"
+                            >
+                                {createRequestMutation.isPending ? "Sending..." : "Send Request"}
                             </button>
                         </div>
                     </div>
@@ -67,6 +125,7 @@ const RequestConfirmationPage: React.FC = () => {
         </div>
     );
 };
+
 export default () => (
     <AuthGuard>
         <RoleGuard role={Role.Parent}>

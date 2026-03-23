@@ -1,311 +1,303 @@
-import React from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { TUTORS } from '../../backend/frontend/constants';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
-import CheckCircleIcon from '../../components/icons/CheckCircleIcon';
-import RatingStars from '../../components/ui/RatingStars';
-import StarIcon from '../../components/icons/StarIcon';
-import { TutorStatus, Role } from '../../types';
-import { AuthGuard } from '../../features/auth/AuthGuard';
-import { RoleGuard } from '../../features/auth/RoleGuard';
-import ChevronDownIcon from '../../components/icons/ChevronDownIcon';
-
-const ChevronRight = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-    </svg>
-);
-
-const Heart = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-    </svg>
-);
-
-const Share2 = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-    </svg>
-);
-
-const ShieldCheck = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-    </svg>
-);
-
-const Clock = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-);
-
-const Calendar = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-);
-
-const MessageSquare = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-    </svg>
-);
-
-const Award = ({ className }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-    </svg>
-);
+import { useTutorDetails } from '../../features/parent/hooks/useTutorDetails';
+import { Star, MapPin, Award, BookOpen, Clock, Globe, ShieldCheck, CheckCircle, ChevronRight, MessageSquare, Send, Loader2 } from 'lucide-react';
+import { TutorStatus } from '../../types';
 
 const TutorProfilePage: React.FC = () => {
-    const { id } = useParams();
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const tutor = TUTORS.find(t => t.id === id);
+    const { data: tutor, isLoading, error } = useTutorDetails(id);
+    const [activeTab, setActiveTab] = useState<'about' | 'qualifications' | 'availability' | 'reviews'>('about');
 
-    if (!tutor) {
+    const handleBookSession = () => {
+        if (tutor) {
+            navigate(`/request-confirmation/${tutor.id}`);
+        }
+    };
+
+    if (isLoading) {
         return (
-            <div className="min-h-screen flex flex-col bg-neutral-50">
-                <Header />
-                <div className="flex-grow flex flex-col items-center justify-center p-4">
-                    <h1 className="text-2xl font-bold mb-4 text-neutral-800">Tutor Not Found</h1>
-                    <Link to="/parent/find-tutors" className="text-primary hover:underline font-semibold">
-                        Back to Find Tutors
-                    </Link>
-                </div>
-                <Footer />
+            <div className="bg-neutral-50 min-h-screen flex flex-col items-center justify-center">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                <p className="mt-4 font-black text-neutral-900 uppercase tracking-widest text-xs">Loading Profile...</p>
             </div>
         );
     }
 
+    if (error || !tutor) {
+        return (
+            <div className="bg-neutral-50 min-h-screen flex flex-col items-center justify-center">
+                <h2 className="text-2xl font-black text-neutral-900 mb-2">Tutor not found</h2>
+                <button onClick={() => navigate('/find-tutors')} className="text-primary font-bold hover:underline">Back to search</button>
+            </div>
+        );
+    }
+    console.log(tutor)
     return (
-        <div className="bg-white min-h-screen flex flex-col">
+        <div className="bg-neutral-50 min-h-screen flex flex-col">
             <Header />
 
-            {/* Breadcrumbs & Actions Row */}
-            <div className="border-b border-neutral-100 py-3 bg-neutral-50/30">
-                <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center text-sm">
-                    <nav className="flex items-center space-x-2 text-neutral-500">
-                        <Link to="/parent/dashboard" className="hover:text-primary">Home</Link>
-                        <ChevronRight className="w-4 h-4" />
-                        <Link to="/parent/find-tutors" className="hover:text-primary">Find Tutors</Link>
-                        <ChevronRight className="w-4 h-4" />
-                        <span className="text-neutral-900 font-medium truncate max-w-[150px] md:max-w-none">{tutor.name}</span>
-                    </nav>
-                    <div className="flex items-center space-x-4">
-                        <button className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-600">
-                            <Share2 className="w-5 h-5" />
-                        </button>
-                        <button className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-600">
-                            <Heart className="w-5 h-5" />
-                        </button>
+            {/* Profile Hero Section */}
+            <div className="bg-white border-b border-neutral-100">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                    <div className="flex flex-col md:flex-row gap-10 items-start">
+                        {/* Avatar & Verification */}
+                        <div className="relative">
+                            <img
+                                src={tutor.photo || '/defaults/default.jpg'}
+                                alt={tutor.username}
+                                className="w-32 h-32 md:w-48 md:h-48 rounded-3xl object-cover shadow-2xl border-4 border-white"
+                            />
+                            {tutor.is_id_verified && (
+                                <div className="absolute -bottom-3 -right-3 bg-secondary text-white px-4 py-1.5 rounded-full text-xs font-black shadow-lg flex items-center gap-1 border-4 border-white">
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                    AI-VERIFIED
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Basic Info */}
+                        <div className="flex-grow space-y-4 w-full">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <h1 className="text-4xl font-black text-neutral-900 tracking-tight">
+                                    {tutor.first_name} {tutor.last_name}
+                                </h1>
+                                {tutor.tutor_profile?.title && (
+                                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm font-bold">
+                                        {tutor.tutor_profile.title}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-6 text-neutral-500 font-medium">
+                                <div className="flex items-center gap-2">
+                                    <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                    <span className="text-neutral-900 font-bold">{tutor.rating}</span>
+                                    <span>({tutor.reviews_count} reviews)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <MapPin className="w-5 h-5 text-neutral-400" />
+                                    <span>{tutor.location || 'Addis Ababa, Ethiopia'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Globe className="w-5 h-5 text-neutral-400" />
+                                    <span>English, Amharic</span>
+                                </div>
+                            </div>
+
+                            {/* Key Metrics Cards */}
+                            <div className="flex gap-4 pt-4 overflow-x-auto pb-2 scrollbar-hide">
+                                <div className="bg-neutral-50 px-6 py-4 rounded-2xl border border-neutral-100 min-w-[140px]">
+                                    <div className="text-2xl font-black text-neutral-900">5+ years</div>
+                                    <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Experience</div>
+                                </div>
+                                <div className="bg-neutral-50 px-6 py-4 rounded-2xl border border-neutral-100 min-w-[140px]">
+                                    <div className="text-2xl font-black text-neutral-900">100+</div>
+                                    <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Hours Taught</div>
+                                </div>
+                                <div className="bg-neutral-50 px-6 py-4 rounded-2xl border border-neutral-100 min-w-[140px]">
+                                    <div className="text-2xl font-black text-neutral-900">ETB {tutor.tutor_profile?.hourly_rate}</div>
+                                    <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Per Hour</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* CTA Desktop */}
+                        <div className="hidden lg:block w-72 bg-white p-6 rounded-3xl border border-neutral-100 shadow-xl shadow-neutral-200/50 sticky top-24">
+                            <div className="mb-6">
+                                <div className="text-sm font-bold text-neutral-400 uppercase tracking-widest mb-1">Pricing</div>
+                                <div className="flex flex-col items-baseline gap-1">
+                                    <p className="text-3xl font-black text-neutral-900">{tutor.tutor_profile?.hourly_rate}</p>
+                                    <div className="w-full flex justify-end">
+                                        <p className="text-neutral-500 font-bold">ETB / Hr</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleBookSession}
+                                className="w-full bg-primary text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all transform hover:-translate-y-1 active:translate-y-0"
+                            >
+                                Request a session
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-                <div className="grid lg:grid-cols-3 gap-12">
-
-                    {/* LEFT COLUMN: Main Details */}
-                    <div className="lg:col-span-2">
-
-                        {/* Header Section */}
-                        <div className="mb-8">
-                            <div className="flex flex-col md:flex-row md:items-center gap-6 mb-6">
-                                <img
-                                    src={tutor.avatarUrl}
-                                    alt={tutor.name}
-                                    className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white shadow-xl ring-1 ring-neutral-200"
-                                />
-                                <div>
-                                    <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-900 mb-2">{tutor.name}</h1>
-                                    <div className="flex flex-wrap items-center gap-4 text-sm md:text-base">
-                                        <div className="flex items-center">
-                                            <RatingStars rating={tutor.rating} />
-                                            <span className="ml-1 font-bold text-neutral-800">{tutor.rating}</span>
-                                            <span className="ml-1 text-neutral-500">({tutor.reviews} reviews)</span>
-                                        </div>
-                                        <div className="w-px h-4 bg-neutral-300 hidden md:block"></div>
-                                        {tutor.status === TutorStatus.Verified && (
-                                            <div className="flex items-center text-secondary font-bold">
-                                                <ShieldCheck className="w-5 h-5 mr-1" />
-                                                Verified Tutor
-                                            </div>
-                                        )}
-                                        <div className="w-px h-4 bg-neutral-300 hidden md:block"></div>
-                                        <div className="text-neutral-600 font-medium">{tutor.subjects.length} Subjects Taught</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* About Me Section */}
-                        <section className="mb-10 animate-fade-in">
-                            <h2 className="text-xl md:text-2xl font-bold text-neutral-900 mb-4 flex items-center">
-                                <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mr-3">
-                                    <Award className="w-5 h-5 text-primary" />
-                                </span>
-                                About This Tutor
-                            </h2>
-                            <div className="bg-neutral-50/50 rounded-2xl p-6 md:p-8 border border-neutral-100">
-                                <p className="text-neutral-700 leading-relaxed text-lg whitespace-pre-line italic">
-                                    "{tutor.bio}"
-                                </p>
-                            </div>
-                        </section>
-
-                        {/* What I Teach */}
-                        <section className="mb-10">
-                            <h2 className="text-xl font-bold text-neutral-900 mb-4">Subjects I Teach</h2>
-                            <div className="flex flex-wrap gap-3">
-                                {tutor.subjects.map(subject => (
-                                    <div
-                                        key={subject}
-                                        className="bg-white border border-neutral-200 px-4 py-2 rounded-xl text-neutral-700 font-semibold shadow-sm hover:shadow-md hover:border-primary transition-all cursor-default"
-                                    >
-                                        {subject}
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* Education & Experience */}
-                        <section className="mb-10">
-                            <h2 className="text-xl font-bold text-neutral-900 mb-6 flex items-center">
-                                <Award className="w-5 h-5 mr-3 text-primary" />
-                                Education & Experience
-                            </h2>
-                            <div className="relative border-l-2 border-primary/20 ml-3 pl-8 space-y-8">
-                                <div className="relative">
-                                    <div className="absolute -left-[41px] top-1 w-4 h-4 bg-primary rounded-full border-4 border-white shadow-sm"></div>
-                                    <h4 className="font-bold text-neutral-900 text-lg">Professional Experience</h4>
-                                    <p className="text-primary font-semibold">{tutor.experience} in Education</p>
-                                </div>
-                                {tutor.qualifications.map((q, i) => (
-                                    <div key={i} className="relative">
-                                        <div className="absolute -left-[41px] top-1 w-4 h-4 bg-neutral-300 rounded-full border-4 border-white shadow-sm"></div>
-                                        <p className="text-neutral-700 font-medium leading-snug">{q}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* Weekly Schedule */}
-                        <section className="mb-10">
-                            <h2 className="text-xl font-bold text-neutral-900 mb-4 flex items-center">
-                                <Calendar className="w-5 h-5 mr-3 text-primary" />
-                                Typical Weekly Availability
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {tutor.availability.map(avail => (
-                                    <div key={avail.day} className="flex items-center justify-between p-4 bg-white border border-neutral-100 rounded-xl shadow-sm">
-                                        <span className="font-bold text-neutral-800">{avail.day}</span>
-                                        <div className="flex flex-wrap gap-2 justify-end">
-                                            {avail.times.map(time => (
-                                                <span key={time} className="text-xs font-bold px-2 py-1 bg-neutral-100 text-neutral-600 rounded-md">
-                                                    {time}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <p className="mt-4 text-sm text-neutral-500 flex items-center italic">
-                                <Clock className="w-4 h-4 mr-2" />
-                                Availability is subject to change based on actual bookings.
-                            </p>
-                        </section>
-
-                        {/* Reviews Section */}
-                        <section>
-                            <h2 className="text-xl font-bold text-neutral-900 mb-6 flex items-center">
-                                <MessageSquare className="w-5 h-5 mr-3 text-primary" />
-                                Parent Reviews ({tutor.reviews})
-                            </h2>
-                            <div className="space-y-6">
-                                {/* Review 1 */}
-                                <div className="p-6 bg-white border border-neutral-100 rounded-2xl shadow-sm">
-                                    <div className="flex items-center gap-4 mb-3">
-                                        <img className="w-12 h-12 rounded-full ring-2 ring-neutral-50" src="https://picsum.photos/seed/parent1/100" alt="Parent" />
-                                        <div>
-                                            <h4 className="font-bold text-neutral-900 leading-none">Aster A.</h4>
-                                            <div className="flex mt-1">
-                                                {[...Array(5)].map((_, i) => <StarIcon key={i} className="w-4 h-4 text-amber-400" />)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p className="text-neutral-700 leading-relaxed italic">
-                                        "Abebe is an amazing physics tutor. My son's grades improved significantly after just a few sessions. Highly recommended!"
-                                    </p>
-                                </div>
-                                {/* Review 2 */}
-                                <div className="p-6 bg-white border border-neutral-100 rounded-2xl shadow-sm">
-                                    <div className="flex items-center gap-4 mb-3">
-                                        <img className="w-12 h-12 rounded-full ring-2 ring-neutral-50" src="https://picsum.photos/seed/parent2/100" alt="Parent" />
-                                        <div>
-                                            <h4 className="font-bold text-neutral-900 leading-none">Tilahun G.</h4>
-                                            <div className="flex mt-1">
-                                                {[...Array(5)].map((_, i) => <StarIcon key={i} className="w-4 h-4 text-amber-400" />)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p className="text-neutral-700 leading-relaxed italic">
-                                        "Very patient and explains difficult concepts in a way that is easy to understand. My daughter is now confident in her math skills."
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-
-                    </div>
-
-
-                    {/* RIGHT COLUMN: Sticky Booking Card */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-white rounded-2xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-neutral-200 p-8 sticky top-24 overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1.5 bg-primary"></div>
-
-                            <div className="flex justify-between items-start mb-6">
-                                <h3 className="text-xl font-bold text-neutral-900">Standard Rate</h3>
-                                <div className="text-right">
-                                    <p className="text-3xl font-black text-primary">ETB {tutor.pricePerHour}</p>
-                                    <p className="text-sm text-neutral-500">per hour session</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 mb-8">
-                                <div className="flex items-center text-neutral-700 font-medium">
-                                    <ShieldCheck className="w-5 h-5 mr-3 text-secondary" />
-                                    Money-back guarantee
-                                </div>
-                                <div className="flex items-center text-neutral-700 font-medium">
-                                    <MessageSquare className="w-5 h-5 mr-3 text-primary/60" />
-                                    Free consultation chat
-                                </div>
-                                <div className="flex items-center text-neutral-700 font-medium">
-                                    <Calendar className="w-5 h-5 mr-3 text-primary/60" />
-                                    Flexible rescheduling
-                                </div>
-                            </div>
-
+            {/* Content Tabs */}
+            <div className="sticky top-0 bg-white border-b border-neutral-100 z-10">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex gap-8 md:gap-12 overflow-x-auto scrollbar-hide">
+                        {(['about', 'qualifications', 'availability', 'reviews'] as const).map(tab => (
                             <button
-                                onClick={() => navigate(`/request-confirmation/${tutor.id}`)}
-                                className="w-full bg-primary text-white font-black py-4 rounded-xl text-lg hover:bg-primary-dark shadow-lg shadow-primary/20 hover:shadow-xl hover:-translate-y-0.5 transition-all mb-4"
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`py-6 text-xs md:text-sm font-black uppercase tracking-widest transition-all border-b-4 whitespace-nowrap ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-neutral-400 hover:text-neutral-600'}`}
                             >
-                                Request Tutor Session
+                                {tab}
                             </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
 
-                            <button className="w-full bg-neutral-100 text-neutral-700 font-bold py-3 rounded-xl hover:bg-neutral-200 transition-colors">
-                                Send a Message
-                            </button>
+            {/* Main Content Sections */}
+            <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div className="flex flex-col lg:flex-row gap-12">
+                    <div className="flex-grow">
+                        {activeTab === 'about' && (
+                            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <section>
+                                    <h2 className="text-2xl font-black text-neutral-900 mb-6">About Me</h2>
+                                    <p className="text-lg text-neutral-600 leading-relaxed font-medium">
+                                        {tutor.tutor_profile?.bio}
+                                    </p>
+                                </section>
 
-                            <div className="mt-8 pt-6 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-400 font-bold uppercase tracking-wider">
-                                <span>Avg Response Time</span>
-                                <span className="text-neutral-600">Under 2 hours</span>
+                                <section>
+                                    <h2 className="text-2xl font-black text-neutral-900 mb-6">Expertise</h2>
+                                    <div className="flex flex-wrap gap-3">
+                                        {tutor.tutor_profile?.subject?.map(s => (
+                                            <span key={s.id} className="px-5 py-3 bg-neutral-100 text-neutral-800 rounded-2xl font-bold text-sm">
+                                                {s.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </section>
                             </div>
-                        </div>
+                        )}
+
+                        {activeTab === 'qualifications' && (
+                            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <h2 className="text-2xl font-black text-neutral-900">Verified Credentials</h2>
+                                {tutor.tutor_profile?.qualifications && tutor.tutor_profile.qualifications.length > 0 ? (
+                                    <div className="space-y-6">
+                                        {tutor.tutor_profile.qualifications.map(q => (
+                                            <div key={q.id} className="flex gap-6 p-8 bg-white border border-neutral-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                                    {q.type === 'education' ? <Award className="w-8 h-8 text-primary" /> : <CheckCircle className="w-8 h-8 text-secondary" />}
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-black text-primary uppercase tracking-widest mb-1">{q.type}</div>
+                                                    <h4 className="text-xl font-black text-neutral-900 mb-1">{q.title}</h4>
+                                                    <p className="text-neutral-500 font-bold mb-4">{q.description}</p>
+                                                    {q.status === 'approved' && (
+                                                        <div className="flex items-center gap-2 text-secondary text-sm font-black uppercase tracking-tighter">
+                                                            <ShieldCheck className="w-4 h-4" />
+                                                            Verified
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-neutral-400 font-bold italic py-8">No verified credentials listed yet.</div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'availability' && (
+                            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div>
+                                    <h2 className="text-2xl font-black text-neutral-900 mb-2">Weekly Schedule</h2>
+                                    <p className="text-neutral-500 font-medium italic">Available slots for tutoring sessions.</p>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {tutor.tutor_profile?.availabilities && tutor.tutor_profile.availabilities.length > 0 ? (
+                                        tutor.tutor_profile.availabilities.map(slot => (
+                                            <div key={slot.id} className="bg-white p-6 border border-neutral-100 rounded-2xl shadow-sm flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-primary/5 rounded-xl flex items-center justify-center">
+                                                    <Clock className="w-6 h-6 text-primary" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+                                                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][slot.day_of_week]}
+                                                    </div>
+                                                    <div className="font-bold text-neutral-900">
+                                                        {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="col-span-full text-neutral-400 font-bold italic py-8">No specific availability listed. Contact the tutor for custom arrangements.</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'reviews' && (
+                            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <h2 className="text-2xl font-black text-neutral-900">{tutor.reviews_count} Parent Testimonials</h2>
+                                <div className="grid gap-6">
+                                    {tutor.reviews_received && tutor.reviews_received.length > 0 ? (
+                                        tutor.reviews_received.map((r) => (
+                                            <div key={r.id} className="p-8 bg-white border border-neutral-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="flex justify-between items-start mb-6">
+                                                    <div className="flex gap-4 items-center">
+                                                        <div className="w-12 h-12 bg-neutral-100 rounded-full flex items-center justify-center font-black text-neutral-300">
+                                                            {(r.reviewer_name || 'U').charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <h5 className="font-black text-neutral-900">{r.reviewer_name}</h5>
+                                                            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Parent</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex text-yellow-500">
+                                                        {[...Array(5)].map((_, j) => (
+                                                            <Star key={j} className={`w-4 h-4 ${j < r.rating ? 'fill-yellow-500' : 'text-neutral-200'}`} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <p className="text-neutral-600 font-medium leading-relaxed italic">"{r.comment}"</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-neutral-400 font-bold italic py-8">No testimonials yet.</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
+                    {/* Right Column Sidebar */}
+                    <div className="lg:w-80 flex-shrink-0 space-y-6">
+                        <div className="bg-primary/5 p-8 rounded-3xl border border-primary/10">
+                            <h4 className="text-lg font-black text-primary mb-4 flex items-center gap-2">
+                                <MessageSquare className="w-5 h-5" />
+                                Direct Message
+                            </h4>
+                            <p className="text-sm font-medium text-primary/70 mb-6 leading-relaxed">
+                                Need custom arrangements? Message the tutor directly.
+                            </p>
+                            <button className="w-full flex items-center justify-center gap-2 bg-white text-primary py-3 rounded-2xl font-black text-sm border-2 border-primary/10 hover:bg-neutral-50 transition-all">
+                                Chat Now
+                                <Send className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="bg-neutral-900 p-8 rounded-3xl text-white">
+                            <h4 className="text-lg font-black mb-6">Why Hytor Verified?</h4>
+                            <ul className="space-y-4">
+                                <li className="flex gap-3 text-sm font-medium items-start">
+                                    <CheckCircle className="w-5 h-5 text-secondary flex-shrink-0" />
+                                    <span>Vetted academic backgrounds</span>
+                                </li>
+                                <li className="flex gap-3 text-sm font-medium items-start">
+                                    <CheckCircle className="w-5 h-5 text-secondary flex-shrink-0" />
+                                    <span>Satisfaction guarantee</span>
+                                </li>
+                                <li className="flex gap-3 text-sm font-medium items-start">
+                                    <CheckCircle className="w-5 h-5 text-secondary flex-shrink-0" />
+                                    <span>Secure weekly payments</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </main>
 
@@ -314,10 +306,4 @@ const TutorProfilePage: React.FC = () => {
     );
 };
 
-export default () => (
-    <AuthGuard>
-        <RoleGuard role={Role.Parent}>
-            <TutorProfilePage />
-        </RoleGuard>
-    </AuthGuard>
-);
+export default TutorProfilePage;

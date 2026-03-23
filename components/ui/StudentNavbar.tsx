@@ -18,7 +18,7 @@ const StudentNavbar: React.FC = () => {
                         <nav className="hidden md:flex items-center space-x-6 font-semibold text-[15px]">
                             <Link to="/parent/dashboard" className="text-neutral-600 hover:text-primary transition-colors">Dashboard</Link>
                             <Link to="/parent/find-tutors" className="text-neutral-600 hover:text-primary transition-colors">Find Tutors</Link>
-                            <Link to="/parent/request-status" className="text-neutral-600 hover:text-primary transition-colors">My Requests</Link>
+                            <Link to="/parent/bookings" className="text-neutral-600 hover:text-primary transition-colors">My Bookings</Link>
                         </nav>
                     </div>
 

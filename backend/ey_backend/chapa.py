@@ -10,7 +10,7 @@ class Chapa:
     BASE_URL = "https://api.chapa.co/v1"
 
     @classmethod
-    def initialize_payment(cls, amount, email, first_name, last_name, tx_ref, callback_url=None):
+    def initialize_payment(cls, amount, email, first_name, last_name, tx_ref, callback_url=None, return_url=None):
         """
         Initialize a payment and get the checkout URL.
         """
@@ -27,7 +27,7 @@ class Chapa:
             "last_name": last_name,
             "tx_ref": tx_ref,
             "callback_url": callback_url,
-            # Customize as needed
+            "return_url": return_url,
         }
         response = requests.post(url, json=data, headers=headers)
         return response.json()

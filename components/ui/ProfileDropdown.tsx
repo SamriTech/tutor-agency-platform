@@ -50,7 +50,7 @@ const ProfileDropdown: React.FC = () => {
                 return '/parent/profile';
 
             case Role.Tutor:
-                return '/tutor/profile/edit';
+                return '/tutor/gig-profile';
 
             default:
                 return getDashboardPath();
@@ -81,7 +81,7 @@ const ProfileDropdown: React.FC = () => {
                 className="flex items-center space-x-2 p-1 rounded-full hover:bg-neutral-100 transition-colors"
             >
                 <img
-                    src={user.photo || `https://ui-avatars.com/api/?name=${user.username.replace(' ', '+')}&background=4C1D95&color=fff`}
+                    src={user.photo || `https://ui-avatars.com/api/?name=${user?.username?.replace(' ', '+')}&background=4C1D95&color=fff`}
                     alt={user.username}
                     className="w-8 h-8 rounded-full"
                 />
@@ -111,17 +111,6 @@ const ProfileDropdown: React.FC = () => {
                     >
                         <UserCircleIcon className="w-5 h-5 mr-2" /> Profile
                     </Link>
-
-                    {user.role === Role.Tutor && (
-                        <Link
-                            to="/tutor/payment-settings"
-                            className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
-                            onClick={() => setIsOpen(false)}
-                        >
-                            <CogIcon className="w-5 h-5 mr-2" /> Payments
-                        </Link>
-                    )}
-
                     <div className="border-t my-1"></div>
 
                     <button

@@ -18,15 +18,12 @@ const TutorNavbar: React.FC = () => {
                         <nav className="hidden md:flex items-center space-x-6 font-semibold text-[15px]">
                             <Link to="/tutor/dashboard" className="text-neutral-600 hover:text-primary transition-colors">Dashboard</Link>
                             <Link to="/tutor/sessions" className="text-neutral-600 hover:text-primary transition-colors">My Sessions</Link>
-                            <Link to="/tutor/payment-settings" className="text-neutral-600 hover:text-primary transition-colors">Earnings</Link>
+                            <Link to="/tutor/wallet" className="text-neutral-600 hover:text-primary transition-colors">Wallet</Link>
                         </nav>
                     </div>
 
                     {/* Right side: Actions */}
                     <div className="flex items-center space-x-4">
-                        <Link to="/tutor/dashboard" className="hidden sm:block text-neutral-500 font-medium text-sm hover:text-primary transition-colors mr-2">
-                            Switch to Student
-                        </Link>
                         <ProfileDropdown />
                     </div>
 

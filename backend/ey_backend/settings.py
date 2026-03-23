@@ -29,7 +29,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True if os.getenv("DEBUG") == "TRUE" else False  
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["enterological-interlineally-jolene.ngrok-free.dev","localhost","127.0.0.1"]
 
 
 # Application definition
@@ -85,7 +85,9 @@ ROOT_URLCONF = 'ey_backend.urls'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://127.0.0.1:8000",
+    "https://enterological-interlineally-jolene.ngrok-free.dev"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -93,7 +95,7 @@ CORS_ALLOW_CREDENTIALS = True
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [Path.joinpath(BASE_DIR,"templates")],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -242,7 +244,9 @@ STATIC_URL = 'static/'
 STATIC_ROOT = Path.joinpath(BASE_DIR, os.getenv("STATIC_ROOT"))
 MEDIA_ROOT = Path.joinpath(BASE_DIR,os.getenv("MEDIA_ROOT"))
 MEDIA_URL = "media/"
-
+STATICFILES_DIRS = [
+    Path.joinpath(BASE_DIR,"staticfiles")
+]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

@@ -1,3 +1,10 @@
+# JOBS
+
+Create admin page more important (IMPORTANT #1)
+FIX search in Find tutors & dashboard for parents
+make the ai search in the front page work (IMPORTANT #2)
+create a rating component on booking page past tab (IMPORTANT #3)
+setup message to work for parent.
 # TESTS
 
 * first test password reset pipe line (IMPORTANT)
