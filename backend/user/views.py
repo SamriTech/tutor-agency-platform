@@ -434,7 +434,7 @@ class UserListView(ListAPIView):
     
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
-    callback_url = "http://projectdsplay.pythonanywhere.com/auth/callback/google"
+    callback_url = "https://projectdsplay.pythonanywhere.com/auth/callback/google"
     client_class = OAuth2Client
 
 class PasswordResetView(GenericAPIView):
