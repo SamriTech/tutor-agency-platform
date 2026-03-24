@@ -8,7 +8,7 @@ from .models import (MyUser, OTP, PasswordResetToken, Qualification,
                     StudentProfile, TutorProfile,TutoringRequest)
 from rest_framework import serializers
 from django.db.models import Avg, Count
-
+from .adapter import CustomAccountAdapter
 class ExpertiseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expertise
@@ -115,7 +115,7 @@ class CustomUserDetailSerializer(UserDetailsSerializer):
             "is_phone_verified", "photo", "role", "location", "subject",
             "student_profile", "tutor_profile", "rating", "reviews_count",
             "reviews_received", "phone_number","balance",
-            "id_verification_status"
+            "id_verification_status", "date_joined"
         ]
         model = MyUser
 
@@ -186,6 +186,7 @@ class FinishSignupSerializer(serializers.ModelSerializer):
     expertise = serializers.PrimaryKeyRelatedField(queryset=Expertise.objects.all(), many=True, required=False)
     bio = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     id_photo = serializers.ImageField(required=False, allow_null=True)
+    password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = MyUser
@@ -193,7 +194,7 @@ class FinishSignupSerializer(serializers.ModelSerializer):
             'first_name', 'last_name', 'email', 'phone_number', 
             'location', 'role', 'grade_level', 'subject', 
             'hourly_rate', 'title', 'expertise', 'bio', 
-            'id_photo', 'username'
+            'id_photo', 'username', 'password'
         ]
 
     def validate(self, data):
@@ -212,6 +213,10 @@ class FinishSignupSerializer(serializers.ModelSerializer):
         expertise = validated_data.pop('expertise', [])
         bio = validated_data.pop('bio', None)
         id_photo = validated_data.pop('id_photo', None)
+        password = validated_data.pop('password', None)
+
+        if password:
+            instance.set_password(password)
 
         # Handle id_verification_status if id_photo is uploaded
         if id_photo and instance.role == 'tutor':
@@ -246,7 +251,8 @@ class CustomPasswordResetSerializer(serializers.Serializer):
         user = MyUser.objects.filter(phone_number=self.validated_data.get("phone"))
         if(user.exists()):
             otp_obj,created = OTP.objects.get_or_create(user=user.first())
-            print(otp_obj.code)
+            adapter = CustomAccountAdapter()
+            adapter.send_verification_code_sms(user.first(), str(user.first().phone_number), otp_obj.code)
             return {"status":"success","message":"otp sent"}
         else:
             return {"status":"error","message":"The account does not exist"}
@@ -294,8 +300,6 @@ class PhoneChangeVerifySerializer(serializers.Serializer):
     code = serializers.CharField(required=True)
 
 class TutoringRequestSerializer(serializers.ModelSerializer):
-    parent_name = serializers.SerializerMethodField()
-    parent_photo = serializers.SerializerMethodField()
     is_unlocked = serializers.SerializerMethodField()
     subject_name = serializers.SerializerMethodField()
     tutor_name = serializers.SerializerMethodField()
@@ -305,27 +309,22 @@ class TutoringRequestSerializer(serializers.ModelSerializer):
     parent_email = serializers.SerializerMethodField()
     location = serializers.SerializerMethodField()
     grade = serializers.SerializerMethodField()
+    parent_joined_date = serializers.SerializerMethodField()
     review_rating = serializers.SerializerMethodField()
     review_comment = serializers.SerializerMethodField()
 
     class Meta:
         model = TutoringRequest
         fields = [
-            'id', 'tutor', 'description', 
-            'created_at', 'is_active', 'parent_name', 
-            'parent_photo', 'is_unlocked', 'has_review', 'subject_name',
-            'seen', 'tutor_name', 'tutor_photo',
+            'id', 'parent', 'tutor', 'description', 
+            'created_at', 'is_active', 'is_unlocked', 'has_review', 'subject_name',
+            'seen', 'tutor_name', 'tutor_photo', 'parent_joined_date',
             'parent_phone', 'parent_email', 'location', 'grade',
-            'review_rating', 'review_comment'
+            'review_rating', 'review_comment', 'status'
         ]
 
-    def get_parent_name(self, obj):
-        return f"{obj.parent.first_name} {obj.parent.last_name}".strip() or obj.parent.username
-
-    def get_parent_photo(self, obj):
-        if obj.parent.photo:
-            return obj.parent.photo.url
-        return None
+    def get_parent_joined_date(self, obj):
+        return obj.parent.date_joined
 
     def get_parent_phone(self, obj):
         request = self.context.get('request')

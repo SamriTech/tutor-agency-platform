@@ -54,6 +54,8 @@ urlpatterns = [
     path('tutor-requests/', TutorRequestView.as_view(), name='tutor_requests'),
     path('tutor-requests/<int:request_id>/', TutorRequestDetailView.as_view(), name='tutor_request_detail'),
     path('tutor-requests/<int:tutor_id>/create/', CreateTutorRequest.as_view(), name='create_tutor_request'),
+    path('tutor-requests/<int:request_id>/accept/', AcceptTutorRequestView.as_view(), name='accept_tutor_request'),
+    path('tutor-requests/<int:request_id>/refuse/', RefuseTutorRequestView.as_view(), name='refuse_tutor_request'),
     path("unlock-lead/<int:request_id>/",UnlockLeadView.as_view(),name="unlock_lead"),
 
     # Parent Booking Management

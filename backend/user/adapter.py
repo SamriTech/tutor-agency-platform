@@ -2,8 +2,6 @@ from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth.hashers import make_password
 import secrets
-from .serializer import FinishSignupSerializer
-from django.shortcuts import resolve_url
 from .models import OTP
 
 class CustomAccountAdapter(DefaultAccountAdapter):
@@ -30,7 +28,27 @@ class CustomAccountAdapter(DefaultAccountAdapter):
             self.send_verification_code_sms(user, str(user.phone_number), otp_obj.code)
         return user
     def send_verification_code_sms(self, user, phone, code, **kwargs):
-        print(f"Sending SMS to {phone}: Your code is {code}")
+        import requests
+        import os
+        
+        sms_key = os.getenv("SMS_KEY")
+        if not sms_key:
+            print(f"SMS_KEY not found in environment. Code for {phone}: {code}")
+            return
+
+        try:
+            url = "https://smsethiopia.et/api/sms/send"
+            clean_phone = phone[1:]
+            payload = {
+                "msisdn": clean_phone,
+                "text": f"Your Hytor verification code is: {code}",
+            }
+            
+            response = requests.post(url, json=payload, headers={"KEY": sms_key,"Content-Type": "application/json"})
+            response.raise_for_status()
+            print(f"SMS sent successfully to {clean_phone} - {code}")
+        except Exception as e:
+            print(f"Failed to send SMS to {phone}: {str(e)}")
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     def is_auto_signup_allowed(self, request, sociallogin):

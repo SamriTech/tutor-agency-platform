@@ -91,16 +91,14 @@ const TutorProfilePage: React.FC = () => {
                             {/* Key Metrics Cards */}
                             <div className="flex gap-4 pt-4 overflow-x-auto pb-2 scrollbar-hide">
                                 <div className="bg-neutral-50 px-6 py-4 rounded-2xl border border-neutral-100 min-w-[140px]">
-                                    <div className="text-2xl font-black text-neutral-900">5+ years</div>
-                                    <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Experience</div>
-                                </div>
-                                <div className="bg-neutral-50 px-6 py-4 rounded-2xl border border-neutral-100 min-w-[140px]">
-                                    <div className="text-2xl font-black text-neutral-900">100+</div>
-                                    <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Hours Taught</div>
-                                </div>
-                                <div className="bg-neutral-50 px-6 py-4 rounded-2xl border border-neutral-100 min-w-[140px]">
                                     <div className="text-2xl font-black text-neutral-900">ETB {tutor.tutor_profile?.hourly_rate}</div>
                                     <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Per Hour</div>
+                                </div>
+                                <div className="bg-neutral-50 px-6 py-4 rounded-2xl border border-neutral-100 min-w-[140px]">
+                                    <div className="text-2xl font-black text-neutral-900">
+                                        {new Date(tutor.date_joined).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                                    </div>
+                                    <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Joined</div>
                                 </div>
                             </div>
                         </div>

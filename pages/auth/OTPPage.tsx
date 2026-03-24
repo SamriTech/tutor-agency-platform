@@ -1,17 +1,24 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useVerifyReset } from "@/features/auth/hooks/usePasswordReset";
+import { getErrorMessage } from '@/lib/utils/errorUtils';
+import { Loader2 } from 'lucide-react';
 
 const OTPPage: React.FC = () => {
     const { showNotification } = useNotificationStore();
+    const [searchParams] = useSearchParams();
+    const phone = searchParams.get('phone') || '';
+    const type = searchParams.get('type') || '';
+
     const [otp, setOtp] = useState<string[]>(new Array(6).fill(''));
+    const [error, setError] = useState<string | null>(null);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const navigate = useNavigate();
+    const verifyResetMutation = useVerifyReset();
 
     const handleChange = (element: HTMLInputElement, index: number) => {
         const value = element.value;
-        if (isNaN(Number(value))) return;
-
         const newOtp = [...otp];
         newOtp[index] = value.substring(value.length - 1);
         setOtp(newOtp);
@@ -48,13 +55,32 @@ const OTPPage: React.FC = () => {
         inputRefs.current[lastIndex]?.focus();
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
         const otpValue = otp.join('');
-        if (otpValue.length === 6) {
-            console.log('OTP Submitted:', otpValue);
-            // Backend integration would go here
-            showNotification(`OTP Submitted: ${otpValue}`, 'success');
+
+        if (otpValue.length !== 6) {
+            setError("Please enter all 6 digits.");
+            return;
+        }
+
+        try {
+            if (type === 'reset') {
+                const result = await verifyResetMutation.mutateAsync({ code: otpValue });
+                if (result.data.status === 'success') {
+                    showNotification("OTP verified successfully!", "success");
+                    navigate(`/change-password?token=${result.data.token}`);
+                } else {
+                    setError(result.data.message || "Invalid OTP code.");
+                }
+            } else {
+                // Handle generic OTP logic if needed
+                console.log('OTP Submitted:', otpValue);
+                showNotification(`OTP Submitted: ${otpValue}`, 'success');
+            }
+        } catch (err: any) {
+            setError(getErrorMessage(err));
         }
     };
 
@@ -65,13 +91,19 @@ const OTPPage: React.FC = () => {
                     Verify OTP
                 </h2>
                 <p className="mt-2 text-sm text-neutral-600">
-                    Please enter the 6-digit code sent to your device.
+                    Please enter the 6-digit code sent to <span className="font-semibold text-neutral-900">{phone || 'your device'}</span>.
                 </p>
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="bg-white py-10 px-6 shadow-xl rounded-2xl sm:px-10 border border-neutral-100">
                     <form onSubmit={handleSubmit} className="space-y-8">
+                        {error && (
+                            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-xl text-center">
+                                <p className="text-sm text-red-700 font-medium">{error}</p>
+                            </div>
+                        )}
+
                         <div className="flex justify-between gap-2 sm:gap-4">
                             {otp.map((data, index) => (
                                 <input
@@ -83,7 +115,7 @@ const OTPPage: React.FC = () => {
                                     onChange={(e) => handleChange(e.target, index)}
                                     onKeyDown={(e) => handleKeyDown(e, index)}
                                     onPaste={index === 0 ? handlePaste : undefined}
-                                    className="w-12 h-16 sm:w-14 sm:h-20 text-center text-3xl font-bold border-2 border-neutral-200 rounded-xl focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-neutral-50"
+                                    className="w-10 h-14 sm:w-14 sm:h-20 text-center text-2xl sm:text-3xl font-bold border-2 border-neutral-100 rounded-xl focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none bg-neutral-50"
                                     autoFocus={index === 0}
                                 />
                             ))}
@@ -92,10 +124,17 @@ const OTPPage: React.FC = () => {
                         <div className="space-y-4">
                             <button
                                 type="submit"
-                                disabled={otp.join('').length < 6}
-                                className="w-full py-4 px-6 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:transform-none"
+                                disabled={otp.join('').length < 6 || verifyResetMutation.isPending}
+                                className="w-full py-4 px-6 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-2"
                             >
-                                Verify Code
+                                {verifyResetMutation.isPending ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Verifying...
+                                    </>
+                                ) : (
+                                    'Verify Code'
+                                )}
                             </button>
 
                             <div className="text-center">

@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.shortcuts import render
+from django.db.models import Q
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
@@ -27,6 +28,8 @@ from .serializer import (
     ReviewSerializer
 )
 from rest_framework.response import Response
+import django_filters
+from django_filters.rest_framework import DjangoFilterBackend
 from dj_rest_auth.registration.views import RegisterView
 from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from .utils import verify_phone_util
@@ -37,6 +40,9 @@ from django.db.models import Case, When
 from .ai_utils import TutorMatcher
 from django_filters.rest_framework import DjangoFilterBackend
 from ey_backend.chapa import Chapa
+from rest_framework.filters import SearchFilter
+import uuid
+
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
@@ -76,11 +82,6 @@ class ResendOTPView(GenericAPIView):
             "status": "success",
             "message": "A new verification code has been sent to your phone."
         }, status=status.HTTP_200_OK)
-from .adapter import CustomAccountAdapter
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
-from allauth.account.models import EmailAddress
-import uuid
 
 class MeProfileView(RetrieveAPIView):
     serializer_class = CustomUserDetailSerializer
@@ -341,16 +342,23 @@ class WithdrawView(GenericAPIView):
         else:
             return Response({"status": "error", "message": res.get("message")}, status=400)
 
+class UserFilter(django_filters.FilterSet):
+    min_rate = django_filters.NumberFilter(field_name="tutor_profile__hourly_rate", lookup_expr='gte')
+    max_rate = django_filters.NumberFilter(field_name="tutor_profile__hourly_rate", lookup_expr='lte')
+    subject = django_filters.NumberFilter(field_name="subject")
+    grade = django_filters.NumberFilter(field_name="tutor_profile__grade")
+    location = django_filters.CharFilter(field_name="location", lookup_expr='icontains')
+    expertise = django_filters.NumberFilter(field_name="tutor_profile__expertise")
+
+    class Meta:
+        model = MyUser
+        fields = ['role', 'subject', 'location', 'expertise']
+
 class UserListView(ListAPIView):
     queryset = MyUser.objects.all()
     serializer_class = CustomUserDetailSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = {
-        'role': ['exact'],
-        'subject': ['exact'],
-        'location': ['icontains', 'exact'],
-        'tutor_profile__expertise': ['exact']
-    }
+    filterset_class = UserFilter
     search_fields = [
         'username', 
         'first_name', 
@@ -600,10 +608,21 @@ class TutorRequestView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
         user = request.user
-        tutor_requests = TutoringRequest.objects.filter(tutor=user)
-        serializer = TutoringRequestSerializer(tutor_requests, many=True, context={'request': request})
+        base_requests = TutoringRequest.objects.filter(tutor=user, is_active=True, status='pending')
+        
+        # New requests: active, non-seen, AND unbought (unlocked)
+        new_requests_qs = base_requests.filter(
+            seen=False
+        ).exclude(purchased_by__tutor=user)
+        
+        # Upcoming session: seen OR bought (unlocked)
+        upcoming_requests_qs = base_requests.filter(
+            Q(seen=True) | Q(purchased_by__tutor=user)
+        )
+        
         return Response({
-            "tutor_requests": serializer.data
+            "new_requests": TutoringRequestSerializer(new_requests_qs, many=True, context={'request': request}).data,
+            "upcoming_requests": TutoringRequestSerializer(upcoming_requests_qs, many=True, context={'request': request}).data
         })
 class TutorRequestDetailView(GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -631,16 +650,17 @@ class CreateTutorRequest(GenericAPIView):
     def post(self,request,tutor_id, *args, **kwargs):
         user = request.user
         tutor = MyUser.objects.get(id=tutor_id)
+        
+        # Check if an active request already exists
+        if TutoringRequest.objects.filter(parent=user, tutor=tutor, is_active=True).exists():
+            return Response({"status":"error","message":"You already have an active request with this tutor"}, status=400)
+            
         description = request.data.get("description", "need a tutor")
-        obj,created=TutoringRequest.objects.get_or_create(
+        obj=TutoringRequest.objects.create(
             parent=user, 
             tutor=tutor,
-            defaults={'description': description}
+            description=description
         )
-        if not created:
-            obj.description = description
-            obj.save()
-            
         return Response({"status":"success","message":"Tutor request sent successfully", "id": obj.id}, status=200)
 
 class UnlockLeadView(GenericAPIView):
@@ -671,6 +691,41 @@ class UnlockLeadView(GenericAPIView):
         
         return Response({"status":"success","message":"Lead unlocked successfully"}, status=200)
 
+class AcceptTutorRequestView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, request_id, *args, **kwargs):
+        user = request.user
+        try:
+            tutoring_request = TutoringRequest.objects.get(id=request_id, tutor=user)
+        except TutoringRequest.DoesNotExist:
+            return Response({"status":"error","message":"Request not found"}, status=404)
+            
+        # Ensure lead is unlocked
+        if not LeadUnlock.objects.filter(tutor=user, lead=tutoring_request).exists():
+            return Response({"status":"error","message":"You must unlock this lead before accepting it"}, status=400)
+            
+            
+        tutoring_request.is_active = False # Mark as accepted/deactivated as a lead
+        tutoring_request.status = 'accepted'
+        tutoring_request.save()
+        
+        return Response({"status":"success","message":"Request accepted successfully"}, status=200)
+
+class RefuseTutorRequestView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, request_id, *args, **kwargs):
+        user = request.user
+        try:
+            tutoring_request = TutoringRequest.objects.get(id=request_id, tutor=user)
+        except TutoringRequest.DoesNotExist:
+            return Response({"status":"error","message":"Request not found"}, status=404)
+            
+        tutoring_request.is_active = False
+        tutoring_request.status = 'refused'
+        tutoring_request.save()
+        
+        return Response({"status":"success","message":"Request refused successfully"}, status=200)
+
 class ParentRequestsView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
@@ -700,11 +755,13 @@ class UpdateDeleteBookingView(GenericAPIView):
     def delete(self, request, request_id, *args, **kwargs):
         user = request.user
         tutoring_request = TutoringRequest.objects.get(id=request_id, parent=user)
-        if tutoring_request.seen:
+        
+        # Allow deletion if NOT seen OR if REFUSED by tutor
+        if tutoring_request.seen and tutoring_request.status != 'refused':
             return Response({"status":"error","message":"Cannot cancel a request that has already been seen by the tutor"}, status=400)
         
         tutoring_request.delete()
-        return Response({"status":"success","message":"Booking canceled successfully"}, status=200)
+        return Response({"status":"success","message":"Booking deleted successfully"}, status=200)
             
 class ReviewListCreateView(ListCreateAPIView):
     queryset = Review.objects.all()

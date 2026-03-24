@@ -1,9 +1,11 @@
 from django.contrib import admin
 from .models import (MyUser,OTP,PasswordResetToken,Qualification,
                     QualificationImage,Availability,Expertise,Subject,
-                    StudentProfile,TutorProfile,Review,TutoringRequest)
+                    StudentProfile,TutorProfile,Review,TutoringRequest,Transaction)
 # Register your models here.
-
+@admin.register(Transaction)
+class TransactionAdmin(admin.ModelAdmin):
+    list_display = ('user',)
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ('reviewer', 'reviewee', 'rating', 'comment')

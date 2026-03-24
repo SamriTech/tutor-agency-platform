@@ -49,6 +49,7 @@ export interface User {
   is_id_verified: boolean;
   id_verification_status?: 'none' | 'pending' | 'verified' | 'rejected';
   balance: string;
+  date_joined: string;
   student_profile?: StudentProfile | null;
   tutor_profile?: TutorProfile | null;
   subject?: Subject[];

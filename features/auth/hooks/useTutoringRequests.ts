@@ -9,8 +9,7 @@ export interface TutoringRequest {
     description: string;
     created_at: string;
     is_active: boolean;
-    parent_name: string;
-    parent_photo: string | null;
+    parent_joined_date: string;
     is_unlocked: boolean;
     subject_name: string;
     seen: boolean;
@@ -23,10 +22,12 @@ export interface TutoringRequest {
     grade?: string;
     review_rating: number | null;
     review_comment: string | null;
+    status: 'pending' | 'accepted' | 'refused';
 }
 
 export interface TutoringRequestsResponse {
-    tutor_requests: TutoringRequest[];
+    new_requests: TutoringRequest[];
+    upcoming_requests: TutoringRequest[];
 }
 
 export const useTutoringRequests = () => {
@@ -139,6 +140,50 @@ export const useCancelBooking = () => {
         },
         onError: (error: any) => {
             const message = error.response?.data?.message || "Error canceling booking";
+            showNotification(message, "error");
+        }
+    });
+};
+
+export const useAcceptTutorRequest = () => {
+    const queryClient = useQueryClient();
+    const { showNotification } = useNotificationStore();
+
+    return useMutation({
+        mutationFn: async (requestId: number | string) => {
+            const res = await api.post(`/api/auth/tutor-requests/${requestId}/accept/`);
+            return res.data;
+        },
+        onSuccess: () => {
+            showNotification("Tutoring request accepted successfully!", "success");
+            queryClient.invalidateQueries({ queryKey: ['tutorRequests'] });
+            queryClient.invalidateQueries({ queryKey: ['tutorRequestDetail'] });
+            queryClient.invalidateQueries({ queryKey: ['parentRequests'] });
+        },
+        onError: (error: any) => {
+            const message = error.response?.data?.message || "Error accepting request";
+            showNotification(message, "error");
+        }
+    });
+};
+
+export const useRefuseTutorRequest = () => {
+    const queryClient = useQueryClient();
+    const { showNotification } = useNotificationStore();
+
+    return useMutation({
+        mutationFn: async (requestId: number | string) => {
+            const res = await api.post(`/api/auth/tutor-requests/${requestId}/refuse/`);
+            return res.data;
+        },
+        onSuccess: () => {
+            showNotification("Tutoring request refused successfully!", "success");
+            queryClient.invalidateQueries({ queryKey: ['tutorRequests'] });
+            queryClient.invalidateQueries({ queryKey: ['tutorRequestDetail'] });
+            queryClient.invalidateQueries({ queryKey: ['parentRequests'] });
+        },
+        onError: (error: any) => {
+            const message = error.response?.data?.message || "Error refusing request";
             showNotification(message, "error");
         }
     });

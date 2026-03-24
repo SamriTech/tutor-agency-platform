@@ -7,14 +7,17 @@ import { useAuthStore } from '@/store/authStore';
 import { TutorStatus, Role } from '../../types';
 import { AuthGuard } from '../../features/auth/AuthGuard';
 import { RoleGuard } from '../../features/auth/RoleGuard';
-import { Zap, Star, User, History, ChevronRight } from 'lucide-react';
+import { Zap, Star, User, History, ChevronRight, Loader2 } from 'lucide-react';
+import { useTutoringRequests } from '../../features/auth/hooks/useTutoringRequests';
 
 const TutorDashboardPage: React.FC = () => {
     const user = useAuthStore(state => state.user);
+    const { data, isLoading } = useTutoringRequests();
 
     // Mock data for demonstration
     const tutorStatus = TutorStatus.Verified;
-    const newRequests = 2;
+    const newRequestsCount = data?.new_requests?.length || 0;
+    const upcomingSessionsCount = data?.upcoming_requests?.length || 0;
 
     return (
         <div className="bg-neutral-50 min-h-screen">
@@ -79,7 +82,11 @@ const TutorDashboardPage: React.FC = () => {
                                     <User className="w-5 h-5" />
                                 </div>
                             </div>
-                            <p className="text-4xl font-black text-neutral-900">{newRequests}</p>
+                            {isLoading ? (
+                                <Loader2 className="w-6 h-6 animate-spin text-neutral-300" />
+                            ) : (
+                                <p className="text-4xl font-black text-neutral-900">{newRequestsCount}</p>
+                            )}
                         </div>
                         <Link to="/tutor/sessions" className="mt-6 flex items-center text-[10px] font-black text-primary uppercase tracking-widest hover:gap-2 transition-all">
                             View Requests <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -94,7 +101,11 @@ const TutorDashboardPage: React.FC = () => {
                                     <History className="w-5 h-5" />
                                 </div>
                             </div>
-                            <p className="text-4xl font-black text-neutral-900">1</p>
+                            {isLoading ? (
+                                <Loader2 className="w-6 h-6 animate-spin text-neutral-300" />
+                            ) : (
+                                <p className="text-4xl font-black text-neutral-900">{upcomingSessionsCount}</p>
+                            )}
                         </div>
                         <Link to="/tutor/sessions" className="mt-6 flex items-center text-[10px] font-black text-primary uppercase tracking-widest hover:gap-2 transition-all">
                             View Sessions <ChevronRight className="w-3.5 h-3.5 ml-1" />

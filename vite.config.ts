@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       ]
     },
     plugins: [react()],
-    base: '/',
+    base: '/static/',
     build: {
       // 2. Point this to your Django "static" folder
       // Adjust the path to match your actual directory structure

@@ -16,11 +16,12 @@ const AuthInitializer = () => {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const res = await api.get("api/auth/user/");
+        const res = await api.get("/api/auth/user/");
         const user = res.data;
+        console.log("test", user)
         setUser(user);
       } catch (error) {
-        logout(); // important → marks initialized true
+        logout();
       }
     };
     if (!user) {
@@ -28,7 +29,12 @@ const AuthInitializer = () => {
     }
     if (user) {
       if (!authFlowPages.includes(location.pathname)) {
-        if (!user?.tutor_profile && !user?.student_profile) {
+        const isProfileComplete = user.phone_number && (
+          (user.role === 'tutor' && user.tutor_profile?.bio) ||
+          (user.role === 'student' && user.student_profile?.grade_level)
+        );
+
+        if (!isProfileComplete) {
           navigate(`/finish-signup?path=${location.pathname}`);
         } else if (!user?.is_phone_verified) {
           navigate(`/verify-phone?path=${location.pathname}`);

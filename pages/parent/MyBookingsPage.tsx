@@ -245,8 +245,10 @@ const MyBookingsPage: React.FC = () => {
                                                 </div>
                                                 <h3 className="text-2xl font-black text-neutral-900">{request.tutor_name}</h3>
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${request.seen ? 'text-primary' : 'text-neutral-400'}`}>
-                                                        {request.seen ? (
+                                                    <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${request.status === 'refused' ? 'text-red-500' : request.seen ? 'text-primary' : 'text-neutral-400'}`}>
+                                                        {request.status === 'refused' ? (
+                                                            <><XCircle className="w-3.5 h-3.5" /> Canceled by Tutor</>
+                                                        ) : request.seen ? (
                                                             <><CheckCircle2 className="w-3.5 h-3.5" /> Seen by Tutor</>
                                                         ) : (
                                                             <><AlertCircle className="w-3.5 h-3.5 text-orange-500" /> Waiting for Review</>
@@ -313,23 +315,36 @@ const MyBookingsPage: React.FC = () => {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <button
-                                                        onClick={() => setRatingModal({
-                                                            isOpen: true,
-                                                            tutorId: request.tutor,
-                                                            tutorName: request.tutor_name,
-                                                            initialRating: request.review_rating,
-                                                            initialComment: request.review_comment
-                                                        })}
-                                                        className={`w-full px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-3 shadow-lg ${request.has_review ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-none' : 'bg-yellow-400 text-neutral-900 hover:bg-yellow-500 shadow-yellow-400/20'
-                                                            }`}
-                                                    >
-                                                        {request.has_review ? <CheckCircle2 className="w-4 h-4" /> : <Star className="w-4 h-4 fill-current" />}
-                                                        {request.has_review ? "Update Rating" : "Rate Tutor"}
-                                                    </button>
-                                                    <p className="text-[10px] text-neutral-400 font-bold text-center italic uppercase tracking-widest px-4">
-                                                        Past Booking Record
-                                                    </p>
+                                                    {request.status === 'refused' ? (
+                                                        <button
+                                                            onClick={() => handleCancel(request.id)}
+                                                            disabled={cancelMutation.isPending}
+                                                            className="w-full px-6 py-4 bg-red-50 text-red-600 rounded-2xl font-black text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-3"
+                                                        >
+                                                            {cancelMutation.isPending && cancelMutation.variables === request.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                            Delete Record
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setRatingModal({
+                                                                    isOpen: true,
+                                                                    tutorId: request.tutor,
+                                                                    tutorName: request.tutor_name,
+                                                                    initialRating: request.review_rating,
+                                                                    initialComment: request.review_comment
+                                                                })}
+                                                                className={`w-full px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-3 shadow-lg ${request.has_review ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-none' : 'bg-yellow-400 text-neutral-900 hover:bg-yellow-500 shadow-yellow-400/20'
+                                                                    }`}
+                                                            >
+                                                                {request.has_review ? <CheckCircle2 className="w-4 h-4" /> : <Star className="w-4 h-4 fill-current" />}
+                                                                {request.has_review ? "Update Rating" : "Rate Tutor"}
+                                                            </button>
+                                                            <p className="text-[10px] text-neutral-400 font-bold text-center italic uppercase tracking-widest px-4">
+                                                                Past Booking Record
+                                                            </p>
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
                                         </div>

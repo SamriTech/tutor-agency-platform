@@ -26,11 +26,8 @@ const MySessionsPage: React.FC = () => {
     const { data: requestsData, isLoading: isLoadingRequests } = useTutoringRequests();
     const unlockMutation = useUnlockLead();
 
-    const leads = requestsData?.tutor_requests || [];
-    // Currently sessions are still mock or derived from unlocked leads in a more complex setup
-    // For now, let's treat unlocked leads as "sessions in progress" or "confirmed leads"
-    const confirmedSessions = leads.filter(l => l.is_unlocked);
-    const lockedLeads = leads.filter(l => !l.is_unlocked);
+    const newRequests = requestsData?.new_requests || [];
+    const upcomingSessions = requestsData?.upcoming_requests || [];
 
     const handleUnlock = (requestId: number) => {
         if (window.confirm("Unlock this lead for 10.00 ETB?")) {
@@ -151,13 +148,13 @@ const MySessionsPage: React.FC = () => {
                             onClick={() => setActiveTab('leads')}
                             className={`px-8 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === 'leads' ? 'bg-neutral-900 text-white shadow-lg' : 'text-neutral-400 hover:text-neutral-900'}`}
                         >
-                            Active Leads ({lockedLeads.length})
+                            New Requests ({newRequests.length})
                         </button>
                         <button
                             onClick={() => setActiveTab('sessions')}
                             className={`px-8 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === 'sessions' ? 'bg-neutral-900 text-white shadow-lg' : 'text-neutral-400 hover:text-neutral-900'}`}
                         >
-                            My Sessions ({confirmedSessions.length})
+                            Upcoming Sessions ({upcomingSessions.length})
                         </button>
                     </div>
                 </div>
@@ -169,8 +166,8 @@ const MySessionsPage: React.FC = () => {
                             <p className="font-black text-xs tracking-widest uppercase">Fetching your leads...</p>
                         </div>
                     ) : activeTab === 'leads' ? (
-                        lockedLeads.length > 0 ? (
-                            lockedLeads.map(request => <LeadCard key={request.id} request={request} />)
+                        newRequests.length > 0 ? (
+                            newRequests.map(request => <LeadCard key={request.id} request={request} />)
                         ) : (
                             <div className="py-32 bg-white rounded-[40px] border border-dashed border-neutral-200 text-center">
                                 <div className="w-20 h-20 bg-neutral-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -181,15 +178,15 @@ const MySessionsPage: React.FC = () => {
                             </div>
                         )
                     ) : (
-                        confirmedSessions.length > 0 ? (
-                            confirmedSessions.map(request => <LeadCard key={request.id} request={request} />)
+                        upcomingSessions.length > 0 ? (
+                            upcomingSessions.map(request => <LeadCard key={request.id} request={request} />)
                         ) : (
                             <div className="py-32 bg-white rounded-[40px] border border-dashed border-neutral-200 text-center">
                                 <div className="w-20 h-20 bg-neutral-50 rounded-full flex items-center justify-center mx-auto mb-6">
                                     <Calendar className="w-10 h-10 text-neutral-200" />
                                 </div>
-                                <h3 className="text-2xl font-black text-neutral-900 mb-2">No Active Sessions</h3>
-                                <p className="text-neutral-500 max-w-sm mx-auto font-medium text-sm">Unlock leads to start conversations and schedule your sessions.</p>
+                                <h3 className="text-2xl font-black text-neutral-900 mb-2">No Upcoming Sessions</h3>
+                                <p className="text-neutral-500 max-w-sm mx-auto font-medium text-sm">Seen leads or unlocked sessions will appear here.</p>
                             </div>
                         )
                     )}

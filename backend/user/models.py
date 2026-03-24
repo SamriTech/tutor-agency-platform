@@ -215,12 +215,18 @@ class ConnectionTransaction(models.Model):
 
 
 class TutoringRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('refused', 'Refused'),
+    ]
     parent = models.ForeignKey(MyUser, on_delete=models.CASCADE)
     tutor = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='requests')
     description = models.TextField(default="need a tutor")  
     created_at = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
     seen = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
     def __str__(self):
         return f"{self.parent.username} - {self.tutor.subject.first().name}"

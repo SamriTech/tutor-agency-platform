@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.4",
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.5",
     "immer": "^11.1.4",

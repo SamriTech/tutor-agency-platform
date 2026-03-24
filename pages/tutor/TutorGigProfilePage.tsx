@@ -308,6 +308,9 @@ const TutorGigProfilePage: React.FC = () => {
                                 <div className="px-3 py-1 bg-neutral-100 text-neutral-600 text-[10px] font-black rounded-full border border-neutral-200">
                                     {user?.rating || '0.0'} ⭐ Rating
                                 </div>
+                                <div className="px-3 py-1 bg-neutral-100 text-neutral-600 text-[10px] font-black rounded-full border border-neutral-200">
+                                    Joined {user?.date_joined ? new Date(user.date_joined).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'N/A'}
+                                </div>
                             </div>
                             <div className="flex gap-4 flex-wrap">
                                 {!isEditing && (

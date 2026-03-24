@@ -18,17 +18,31 @@ const FindTutorsPage: React.FC = () => {
     const {
         searchQuery,
         selectedSubject,
+        selectedGrade,
+        minRate,
+        maxRate,
         location,
         setSearchQuery,
         setSelectedSubject,
+        setSelectedGrade,
+        setMinRate,
+        setMaxRate,
         setLocation,
         resetFilters
     } = useTutorFilterStore();
 
-    const { data: { results: subjects } = { results: [] } } = useSubjects();
+    const { data: subjectsData } = useSubjects();
+    const { data: gradesData } = useSubjects('grade');
+
+    const subjects = subjectsData?.results || [];
+    const grades = gradesData?.results || [];
+
     const { data: tutorsData, isLoading } = useFindTutors({
         role: Role.Tutor,
         subject: selectedSubject,
+        grade: selectedGrade,
+        min_rate: minRate,
+        max_rate: maxRate,
         search: searchQuery,
         location: location
     });
@@ -68,7 +82,7 @@ const FindTutorsPage: React.FC = () => {
                             </div>
                             <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-neutral-100 bg-neutral-50/50">
                                 <select
-                                    className="bg-transparent focus:outline-none text-neutral-700 font-medium cursor-pointer"
+                                    className="bg-transparent focus:outline-none text-neutral-700 font-medium cursor-pointer max-w-[120px]"
                                     value={selectedSubject || ''}
                                     onChange={(e) => setSelectedSubject(e.target.value ? parseInt(e.target.value) : null)}
                                 >
@@ -77,18 +91,45 @@ const FindTutorsPage: React.FC = () => {
                                 </select>
                             </div>
                             <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-neutral-100">
+                                <select
+                                    className="bg-transparent focus:outline-none text-neutral-700 font-medium cursor-pointer max-w-[120px]"
+                                    value={selectedGrade || ''}
+                                    onChange={(e) => setSelectedGrade(e.target.value ? parseInt(e.target.value) : null)}
+                                >
+                                    <option value="">All Grades</option>
+                                    {grades?.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-neutral-100">
                                 <span className="text-neutral-400 mr-2">📍</span>
                                 <input
                                     type="text"
-                                    placeholder="Location (e.g. Bole)"
-                                    className="bg-transparent focus:outline-none text-neutral-800 w-32"
+                                    placeholder="Location"
+                                    className="bg-transparent focus:outline-none text-neutral-800 w-24"
                                     value={location}
                                     onChange={(e) => setLocation(e.target.value)}
                                 />
                             </div>
+                            <div className="flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-neutral-100 bg-neutral-50/50">
+                                <input
+                                    type="number"
+                                    placeholder="Min ETB"
+                                    className="bg-transparent focus:outline-none text-neutral-800 w-20 text-xs"
+                                    value={minRate}
+                                    onChange={(e) => setMinRate(e.target.value)}
+                                />
+                                <span className="mx-1 text-neutral-300">-</span>
+                                <input
+                                    type="number"
+                                    placeholder="Max ETB"
+                                    className="bg-transparent focus:outline-none text-neutral-800 w-20 text-xs"
+                                    value={maxRate}
+                                    onChange={(e) => setMaxRate(e.target.value)}
+                                />
+                            </div>
                             <button
-                                onClick={() => {/* Search is reactive, but we can put something here if needed */ }}
-                                className="bg-primary text-white font-bold px-8 py-4 hover:bg-primary-dark transition-colors shrink-0"
+                                onClick={() => {/* Search is reactive */ }}
+                                className="bg-primary text-white font-bold px-6 py-4 hover:bg-primary-dark transition-colors shrink-0"
                             >
                                 Search
                             </button>

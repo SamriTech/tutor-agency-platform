@@ -5,7 +5,7 @@ import Footer from '../../components/ui/Footer';
 import { AuthGuard } from '../../features/auth/AuthGuard';
 import { RoleGuard } from '../../features/auth/RoleGuard';
 import { Role } from '../../types';
-import { useTutoringRequestDetail, useUnlockLead } from '../../features/auth/hooks';
+import { useTutoringRequestDetail, useUnlockLead, useAcceptTutorRequest, useRefuseTutorRequest } from '../../features/auth/hooks/useTutoringRequests';
 import {
     User,
     Calendar,
@@ -26,6 +26,8 @@ const TutorRequestDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const { data: request, isLoading, error } = useTutoringRequestDetail(id);
     const unlockMutation = useUnlockLead();
+    const acceptMutation = useAcceptTutorRequest();
+    const refuseMutation = useRefuseTutorRequest();
     console.log(request)
     if (isLoading) {
         return (
@@ -47,7 +49,21 @@ const TutorRequestDetailPage: React.FC = () => {
 
     const handleUnlock = () => {
         if (window.confirm("Unlock this lead for 10.00 ETB?")) {
-            unlockMutation.mutate(request.id);
+            unlockMutation.mutate(Number(request.id));
+        }
+    };
+
+    const handleAccept = () => {
+        if (window.confirm("Are you sure you want to accept this request? This will close the lead.")) {
+            acceptMutation.mutate(request.id);
+        }
+    };
+
+    const handleRefuse = () => {
+        if (window.confirm("Are you sure you want to refuse this request? This will remove it from your dashboard.")) {
+            refuseMutation.mutate(request.id, {
+                onSuccess: () => navigate('/tutor/sessions')
+            });
         }
     };
 
@@ -81,6 +97,16 @@ const TutorRequestDetailPage: React.FC = () => {
                                         <GraduationCap className="w-3.5 h-3.5" />
                                         GRADE {request?.grade}
                                     </div>
+                                    {!request.is_active && request.status === 'accepted' && (
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-[10px] font-black tracking-widest">
+                                            ACCEPTED
+                                        </div>
+                                    )}
+                                    {request.status === 'refused' && (
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-600 rounded-full text-[10px] font-black tracking-widest">
+                                            REFUSED
+                                        </div>
+                                    )}
                                 </div>
                                 <h1 className="text-4xl font-black text-neutral-900 tracking-tight mb-8">
                                     {request.subject_name} Tutoring
@@ -93,16 +119,8 @@ const TutorRequestDetailPage: React.FC = () => {
                                     </h3>
                                     <div className="p-8 bg-neutral-50 rounded-[32px] border border-neutral-100">
                                         <p className="text-lg text-neutral-600 leading-relaxed font-medium">
-                                            {request.is_unlocked
-                                                ? request.description
-                                                : `${request.description.substring(0, 150)}...`}
+                                            {request.description}
                                         </p>
-                                        {!request.is_unlocked && (
-                                            <div className="mt-6 flex items-center gap-3 text-neutral-400 italic text-sm">
-                                                <Zap className="w-4 h-4" />
-                                                Unlock this lead to see the full description.
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -127,25 +145,21 @@ const TutorRequestDetailPage: React.FC = () => {
                     {/* Sidebar - Parent Identity & Actions */}
                     <div className="space-y-8">
                         <section className="bg-neutral-900 rounded-[40px] p-8 text-white relative overflow-hidden">
-                            <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-8">Parent Identity</h3>
+                            <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-8">Parent Information</h3>
 
                             <div className="flex flex-col items-center text-center space-y-6">
                                 <div className="relative">
                                     <div className="w-32 h-32 rounded-[40px] overflow-hidden bg-neutral-800 flex items-center justify-center border-4 border-neutral-800 shadow-2xl">
-                                        {request.parent_photo ? (
-                                            <img src={process.env.VITE_API_URL + request.parent_photo} alt={request.parent_name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <User className="w-16 h-16 text-neutral-700" />
-                                        )}
+                                        <User className="w-16 h-16 text-neutral-700" />
                                     </div>
                                 </div>
 
                                 <div>
                                     <h4 className="text-2xl font-black">
-                                        {request.parent_name}
+                                        Parent
                                     </h4>
-                                    <p className="text-neutral-400 font-bold text-sm uppercase tracking-widest mt-1">
-                                        Tutoring Lead
+                                    <p className="text-neutral-400 font-bold text-[10px] uppercase tracking-widest mt-2 px-3 py-1 bg-neutral-800 rounded-full inline-block">
+                                        Joined {new Date(request.parent_joined_date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
                                     </p>
                                 </div>
 
@@ -168,15 +182,51 @@ const TutorRequestDetailPage: React.FC = () => {
                                     )}
                                 </div>
 
-                                {request.is_unlocked ? (
+                                {request.status === 'refused' ? (
+                                    <div className="w-full text-center py-4 bg-red-500/10 text-red-400 rounded-2xl font-black text-xs uppercase tracking-widest border border-red-500/20">
+                                        Request Refused
+                                    </div>
+                                ) : request.is_unlocked ? (
                                     <div className="w-full space-y-3 pt-4 border-t border-neutral-800">
+                                        {request.is_active ? (
+                                            <div className="flex flex-col gap-3">
+                                                <button
+                                                    onClick={handleAccept}
+                                                    disabled={acceptMutation.isPending}
+                                                    className="w-full flex items-center justify-center gap-3 bg-primary text-white py-4 rounded-2xl font-black text-sm hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                                                >
+                                                    {acceptMutation.isPending ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <ShieldCheck className="w-4 h-4" />
+                                                    )}
+                                                    Accept Request
+                                                </button>
+                                                <button
+                                                    onClick={handleRefuse}
+                                                    disabled={refuseMutation.isPending}
+                                                    className="w-full flex items-center justify-center gap-3 bg-neutral-800 text-red-400 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-neutral-700 transition-all border border-red-500/20"
+                                                >
+                                                    {refuseMutation.isPending ? (
+                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                    ) : (
+                                                        <User className="w-3.5 h-3.5" />
+                                                    )}
+                                                    Refuse Request
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full text-center py-4 bg-blue-500/10 text-blue-400 rounded-2xl font-black text-xs uppercase tracking-widest border border-blue-500/20">
+                                                Request Accepted
+                                            </div>
+                                        )}
                                         <button className="w-full flex items-center justify-center gap-3 bg-white text-neutral-900 py-4 rounded-2xl font-black text-sm hover:bg-neutral-100 transition-all">
                                             <MessageSquare className="w-4 h-4" />
                                             Send Message
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="w-full pt-4">
+                                    <div className="w-full pt-4 space-y-4">
                                         <button
                                             onClick={handleUnlock}
                                             disabled={unlockMutation.isPending}
@@ -188,6 +238,18 @@ const TutorRequestDetailPage: React.FC = () => {
                                                 <Zap className="w-5 h-5" />
                                             )}
                                             Unlock for 10.00 ETB
+                                        </button>
+                                        <button
+                                            onClick={handleRefuse}
+                                            disabled={refuseMutation.isPending}
+                                            className="w-full flex items-center justify-center gap-3 bg-neutral-800 text-red-400 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-neutral-700 transition-all border border-red-500/20"
+                                        >
+                                            {refuseMutation.isPending ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <User className="w-3.5 h-3.5" />
+                                            )}
+                                            Refuse Request
                                         </button>
                                         <p className="mt-4 text-[10px] text-neutral-500 font-black uppercase tracking-widest text-center">
                                             Reveals Contact Info & Full Description

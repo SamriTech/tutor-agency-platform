@@ -32,6 +32,7 @@ export interface CompleteSignupPayload {
   phone_number?: string;
   location?: string;
   role?: Role;
+  password?: string;
 }
 
 export interface AuthResponse {
