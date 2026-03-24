@@ -1,8 +1,4 @@
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
+import re
 from django.db.models import Avg
 
 class TutorMatcher:
@@ -21,19 +17,21 @@ class TutorMatcher:
 
     def get_parent_request(self):
         # Extract parent profile data - prioritize profile over search params
-        grade_level = self.search_params.get('grade_level', "")
-        subject = self.search_params.get('subject_name', "")
-        location = self.search_params.get('location', "")
+        grade_level = self.search_params.get('grade_level', "").lower()
+        subject = self.search_params.get('subject_name', "").lower()
+        location = self.search_params.get('location', "").lower()
 
         if self.parent_user:
             if hasattr(self.parent_user, 'student_profile') and self.parent_user.student_profile:
-                grade_level = self.parent_user.student_profile.grade_level.name if self.parent_user.student_profile.grade_level else grade_level
+                if self.parent_user.student_profile.grade_level:
+                    grade_level = self.parent_user.student_profile.grade_level.name.lower()
             
-            parent_subjects = [s.name for s in self.parent_user.subject.all()]
+            parent_subjects = [s.name.lower() for s in self.parent_user.subject.all()]
             if parent_subjects:
                 subject = ", ".join(parent_subjects)
             
-            location = self.parent_user.location or location
+            if self.parent_user.location:
+                location = self.parent_user.location.lower()
         
         return {
             "subject": subject,
@@ -45,13 +43,11 @@ class TutorMatcher:
     def prepare_data(self):
         data = []
         for tutor in self.tutors_queryset:
-            # Aggregate subjects (now on user model)
-            subjects = [s.name for s in tutor.subject.all()]
-            subject_str = ", ".join(subjects) if subjects else ""
+            # Aggregate subjects (multi-valued)
+            subjects = [s.name.lower() for s in tutor.subject.all()]
             
-            # Aggregate expertise (as grade level proxy)
-            grades = [g.name for g in tutor.tutor_profile.grade.all()]
-            grade_str = ", ".join(grades) if grades else ""
+            # Aggregate grades (multi-valued)
+            grades = [g.name.lower() for g in tutor.tutor_profile.grade.all()]
             
             # Dynamic rating & review count
             avg_rating = tutor.reviews_received.aggregate(Avg('rating'))['rating__avg']
@@ -59,89 +55,97 @@ class TutorMatcher:
             reviews_count = tutor.reviews_received.count()
             
             # Collect review comments for text analysis
-            all_reviews = " ".join([r.comment for r in tutor.reviews_received.all() if r.comment])
+            all_reviews = " ".join([r.comment.lower() for r in tutor.reviews_received.all() if r.comment])
             
             data.append({
                 "id": tutor.id,
-                "subject": subject_str,
-                "grade_level": grade_str,
-                "mode": "Online", # Defaulting as per template for now or could be dynamic
-                "experience": reviews_count,
-                "rating": rating,
-                "location": tutor.location or "",
-                "review_content": all_reviews
+                "subjects": set(subjects),
+                "grades": set(grades),
+                "mode": "Online", # Defaulting as per template
+                "experience": float(reviews_count),
+                "rating": float(rating),
+                "location": (tutor.location or "").lower(),
+                "review_content": all_reviews,
+                "original_obj": tutor # Keep reference if needed for serializer
             })
-        return pd.DataFrame(data)
+        return data
+
+    def calculate_similarity(self, req_val, tutor_vals):
+        """Simple overlap similarity for sets/strings."""
+        if not req_val or not tutor_vals:
+            return 0.0
+        
+        if isinstance(tutor_vals, set):
+            # If any of the requested subjects match tutor subjects
+            req_words = set(re.findall(r'\w+', req_val.lower()))
+            overlap = req_words.intersection(tutor_vals)
+            return 1.0 if overlap else 0.0
+        
+        return 1.0 if req_val.lower() in tutor_vals.lower() else 0.0
+
+    def calculate_text_sim(self, target_text, source_text):
+        """Simple word-based matching for review content."""
+        if not target_text or not source_text:
+            return 0.0
+        target_words = set(re.findall(r'\w+', target_text.lower()))
+        source_words = set(re.findall(r'\w+', source_text.lower()))
+        if not target_words:
+            return 0.0
+        overlap = target_words.intersection(source_words)
+        return len(overlap) / len(target_words)
 
     def rank_tutors(self):
         if not self.tutors_queryset.exists():
             return []
 
-        tutors_df = self.prepare_data()
+        tutors_data = self.prepare_data()
         request = self.get_parent_request()
-        print("tutor_df",tutors_df)
-        print("request",request)
-        # Encoders
-        encoder_subject = OneHotEncoder(handle_unknown='ignore')
-        encoder_grade = OneHotEncoder(handle_unknown='ignore')
-        encoder_mode = OneHotEncoder(handle_unknown='ignore')
-        encoder_location = OneHotEncoder(handle_unknown='ignore')
+        
+        # Scaling parameters for numerical features
+        max_exp = max([d["experience"] for d in tutors_data]) if tutors_data else 1.0
+        min_exp = min([d["experience"] for d in tutors_data]) if tutors_data else 0.0
+        max_rat = max([d["rating"] for d in tutors_data]) if tutors_data else 1.0
+        min_rat = min([d["rating"] for d in tutors_data]) if tutors_data else 0.0
 
-        # Fit & Transform Categorical
-        s_combined = pd.concat([tutors_df[["subject"]], pd.DataFrame([[request["subject"]]], columns=["subject"])])
-        g_combined = pd.concat([tutors_df[["grade_level"]], pd.DataFrame([[request["grade_level"]]], columns=["grade_level"])])
-        m_combined = pd.concat([tutors_df[["mode"]], pd.DataFrame([[request["mode"]]], columns=["mode"])])
-        l_combined = pd.concat([tutors_df[["location"]], pd.DataFrame([[request["location"]]], columns=["location"])])
-
-        s_enc = encoder_subject.fit_transform(s_combined).toarray()
-        g_enc = encoder_grade.fit_transform(g_combined).toarray()
-        m_enc = encoder_mode.fit_transform(m_combined).toarray()
-        l_enc = encoder_location.fit_transform(l_combined).toarray()
-
-        t_s = s_enc[:-1]
-        t_g = g_enc[:-1]
-        t_m = m_enc[:-1]
-        t_l = l_enc[:-1]
-
-        p_s = s_enc[-1].reshape(1, -1)
-        p_g = g_enc[-1].reshape(1, -1)
-        p_m = m_enc[-1].reshape(1, -1)
-        p_l = l_enc[-1].reshape(1, -1)
-
-        sim_s = cosine_similarity(p_s, t_s)[0]
-        sim_g = cosine_similarity(p_g, t_g)[0]
-        sim_m = cosine_similarity(p_m, t_m)[0]
-        sim_l = cosine_similarity(p_l, t_l)[0]
-
-        # TF-IDF Review Content Similarity
-        # We match the request subject against tutor reviews to see if people mention their success in that area
-        review_vectors = []
-        if request["subject"] and not tutors_df["review_content"].str.strip().eq("").all():
-            tfidf = TfidfVectorizer(stop_words='english')
-            # Combine tutor reviews with the request subject as the target document
-            all_content = tutors_df["review_content"].tolist() + [request["subject"]]
-            tfidf_matrix = tfidf.fit_transform(all_content)
+        for tutor in tutors_data:
+            # 1. Subject Similarity
+            sim_s = self.calculate_similarity(request["subject"], tutor["subjects"])
             
-            # Similarity of tutors' reviews to the parent's search subject
-            review_sim = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])[0]
-        else:
-            review_sim = np.zeros(len(tutors_df))
+            # 2. Grade Similarity
+            sim_g = self.calculate_similarity(request["grade_level"], tutor["grades"])
+            
+            # 3. Location Similarity
+            sim_l = self.calculate_similarity(request["location"], tutor["location"])
+            
+            # 4. Mode Similarity
+            sim_m = 1.0 if request["mode"] == tutor["mode"] else 0.0
+            
+            # 5. Review Text Similarity (Match search subject against review content)
+            review_sim = self.calculate_text_sim(request["subject"], tutor["review_content"])
+            
+            # 6. Numerical Scoring (Manual MinMax Scaling)
+            exp_score = (tutor["experience"] - min_exp) / (max_exp - min_exp) if max_exp > min_exp else 1.0
+            rat_score = (tutor["rating"] - min_rat) / (max_rat - min_rat) if max_rat > min_rat else 1.0
+            num_sim = (exp_score + rat_score) / 2.0
 
-        # Numerical Features
-        scaler = MinMaxScaler()
-        num_cols = ["experience", "rating"]
-        num_scaled = scaler.fit_transform(tutors_df[num_cols])
-        num_sim = num_scaled.sum(axis=1) / 2
+            # Weighted Score
+            tutor["match_score"] = (
+                self.w_subject * sim_s +
+                self.w_grade * sim_g +
+                self.w_review * review_sim +
+                self.w_num * num_sim +
+                self.w_mode * sim_m +
+                self.w_loc * sim_l
+            )
 
-        # Weighted Score
-        total_score = (
-            self.w_subject * sim_s +
-            self.w_grade * sim_g +
-            self.w_review * review_sim +
-            self.w_num * num_sim +
-            self.w_mode * sim_m +
-            self.w_loc * sim_l
-        )
-
-        tutors_df["match_score"] = total_score
-        return tutors_df.sort_values(by="match_score", ascending=False)
+        # Sort and return
+        tutors_data.sort(key=lambda x: x["match_score"], reverse=True)
+        
+        # Return as a simple list of dicts with 'id' and 'match_score' to match views.py usage
+        results = []
+        for d in tutors_data:
+            results.append({
+                "id": d["id"],
+                "match_score": d["match_score"]
+            })
+        return results

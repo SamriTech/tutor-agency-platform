@@ -402,13 +402,13 @@ class UserListView(ListAPIView):
             
             # 3. Matching
             matcher = TutorMatcher(queryset, request.user if request.user.is_authenticated else None, search_params)
-            ranked_df = matcher.rank_tutors()
+            ranked_data = matcher.rank_tutors()
             
-            if len(ranked_df) == 0:
+            if len(ranked_data) == 0:
                 return Response({"count": 0, "results": []})
 
             # 4. Map back to objects
-            ranked_ids = ranked_df['id'].tolist()
+            ranked_ids = [d['id'] for d in ranked_data]
             # Order queryset by the ranked IDs
             preserved = Case(*[When(id=pk, then=pos) for pos, pk in enumerate(ranked_ids)])
             queryset = MyUser.objects.filter(id__in=ranked_ids).order_by(preserved)
@@ -418,11 +418,16 @@ class UserListView(ListAPIView):
             if page is not None:
                 serializer = self.get_serializer(page, many=True)
                 # Inject scores
-                for data, score in zip(serializer.data, ranked_df['match_score'].tolist()):
+                scores = [d['match_score'] for d in ranked_data]
+                for data, score in zip(serializer.data, scores):
                     data['match_score'] = round(score * 100, 1)
                 return self.get_paginated_response(serializer.data)
 
             serializer = self.get_serializer(queryset, many=True)
+            # Inject scores for non-paginated results
+            scores = [d['match_score'] for d in ranked_data]
+            for data, score in zip(serializer.data, scores):
+                data['match_score'] = round(score * 100, 1)
             return Response(serializer.data)
             
         return super().list(request, *args, **kwargs)
