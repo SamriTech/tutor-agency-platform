@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       allowedHosts: [
-        "enterological-interlineally-jolene.ngrok-free.dev"
+        "enterological-interlineally-jolene.ngrok-free.dev",
+        "ProjectDsplay.pythonanywhere.com"
       ]
     },
     plugins: [react()],
