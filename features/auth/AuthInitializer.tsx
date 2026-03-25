@@ -18,7 +18,6 @@ const AuthInitializer = () => {
       try {
         const res = await api.get("/api/auth/user/");
         const user = res.data;
-        console.log("test", user)
         setUser(user);
       } catch (error) {
         logout();
@@ -31,9 +30,9 @@ const AuthInitializer = () => {
       if (!authFlowPages.includes(location.pathname)) {
         const isProfileComplete = user.phone_number && (
           (user.role === 'tutor' && user.tutor_profile?.bio) ||
-          (user.role === 'student' && user.student_profile?.grade_level)
+          (user.role === 'student' && user.student_profile?.grade_level) ||
+          (user.role === 'admin')
         );
-
         if (!isProfileComplete) {
           navigate(`/finish-signup?path=${location.pathname}`);
         } else if (!user?.is_phone_verified) {

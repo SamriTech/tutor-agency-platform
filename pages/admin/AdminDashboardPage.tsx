@@ -166,7 +166,6 @@ const AdminDashboardPage: React.FC = () => {
         )}
       </main>
       <Footer />
-      <SessionDetailModal session={selectedSession} onClose={() => setSelectedSession(null)} />
     </div>
   );
 };
