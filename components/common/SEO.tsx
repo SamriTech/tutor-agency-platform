@@ -15,12 +15,12 @@ const SEO: React.FC<SEOProps> = ({
     description = 'Find the best home and online tutors for your children.',
     keywords = 'tutor, tutoring, private tutor, online tutor, home tutor, education, learning, Hytor',
     image = 'https://hytormarket.com/logo.jpeg',
-    url = 'https://hytormarket.com/',
+    url = 'https://projectdsplay.pythonanywhere.com/',
     type = 'website',
 }) => {
     const siteName = 'Hytor';
     const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
-    const fallbackImage = 'https://hytormarket.com/logo.jpeg';
+    const fallbackImage = 'https://projectdsplay.pythonanywhere.com/static/logo.jpeg';
     const metaImage = image || fallbackImage;
 
     return (
