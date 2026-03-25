@@ -232,7 +232,7 @@ class DepositView(GenericAPIView):
             first_name=user.first_name or user.username,
             last_name=user.last_name or "",
             tx_ref=tx_ref,
-            callback_url=request.build_absolute_uri("/api/auth/wallet/webhook/"),
+            callback_url=request.build_absolute_uri(f"/api/auth/wallet/verify/{tx_ref}/"),
             return_url=request.build_absolute_uri("/wallet/history")
         )
         
