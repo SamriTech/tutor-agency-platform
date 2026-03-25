@@ -233,7 +233,7 @@ class DepositView(GenericAPIView):
             last_name=user.last_name or "",
             tx_ref=tx_ref,
             callback_url=request.build_absolute_uri("/api/auth/wallet/webhook/"),
-            return_url="http://localhost:3000/wallet/history"
+            return_url=request.build_absolute_uri("/wallet/history")
         )
         
         if res.get("status") == "success":
