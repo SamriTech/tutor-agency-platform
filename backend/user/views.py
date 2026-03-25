@@ -233,7 +233,7 @@ class DepositView(GenericAPIView):
             last_name=user.last_name or "",
             tx_ref=tx_ref,
             callback_url=request.build_absolute_uri(f"/api/auth/wallet/verify/{tx_ref}/"),
-            return_url=request.build_absolute_uri("/wallet/history")
+            return_url=request.build_absolute_uri("/tutor/wallet")
         )
         
         if res.get("status") == "success":
