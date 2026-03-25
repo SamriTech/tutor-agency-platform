@@ -4,6 +4,7 @@ import Header from '../../components/ui/Header';
 import Footer from '../../components/ui/Footer';
 import { useFindTutors } from '../../features/parent/hooks/useFindTutors';
 import { Search, MapPin, GraduationCap, Star, ArrowRight, Loader2, UserPlus } from 'lucide-react';
+import SEO from '../../components/common/SEO';
 
 const GuestTutorResultsPage: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -26,6 +27,7 @@ const GuestTutorResultsPage: React.FC = () => {
 
     return (
         <div className="bg-neutral-50 min-h-screen flex flex-col">
+            <SEO title="Tutor Results" description="Browse our verified tutors and find the best match for your child." />
             <Header />
 
             <main className="flex-grow">

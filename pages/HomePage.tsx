@@ -7,6 +7,7 @@ import CheckCircleIcon from '../components/icons/CheckCircleIcon';
 import { useAuthStore } from '../store/authStore';
 import { useTutorFilterStore } from '../store/tutorFilterStore';
 import { useSubjects } from '../features/auth/hooks/useSubjects';
+import SEO from '../components/common/SEO';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -70,6 +71,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="bg-neutral-50">
+      <SEO />
       <Header />
       <main>
         {/* Hero Section */}

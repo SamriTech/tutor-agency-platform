@@ -5,6 +5,7 @@ import Footer from '../../components/ui/Footer';
 import { useTutorDetails } from '../../features/parent/hooks/useTutorDetails';
 import { Star, MapPin, Award, BookOpen, Clock, Globe, ShieldCheck, CheckCircle, ChevronRight, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { TutorStatus } from '../../types';
+import SEO from '../../components/common/SEO';
 
 const TutorProfilePage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -38,6 +39,11 @@ const TutorProfilePage: React.FC = () => {
     console.log(tutor)
     return (
         <div className="bg-neutral-50 min-h-screen flex flex-col">
+            <SEO
+                title={tutor ? `${tutor.first_name} ${tutor.last_name} | Tutor Profile` : 'Tutor Profile'}
+                description={tutor?.tutor_profile?.bio || 'Check out this verified tutor on Hytor.'}
+                image={tutor?.photo}
+            />
             <Header />
 
             {/* Profile Hero Section */}

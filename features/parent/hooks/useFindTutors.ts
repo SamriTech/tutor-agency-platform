@@ -13,6 +13,7 @@ export interface TutorFilters {
     search?: string;
     subject?: number | null;
     grade?: number | null;
+    grade_level?: string | null;
     min_rate?: string;
     max_rate?: string;
     location?: string;
