@@ -44,7 +44,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
                 "text": f"Your Hytor verification code is: {code}",
             }
             
-            response = requests.post(url, json=payload, headers={"KEY": sms_key,"Content-Type": "application/json"})
+            response = requests.post(url, json=payload,verify=False, headers={"KEY": sms_key,"Content-Type": "application/json"})
             response.raise_for_status()
             print(f"SMS sent successfully to {clean_phone} - {code}")
         except Exception as e:
