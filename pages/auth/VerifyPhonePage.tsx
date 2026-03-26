@@ -70,6 +70,7 @@ const VerifyPhonePage: React.FC = () => {
                 </h2>
                 <p className="mt-2 text-center text-sm text-neutral-600">
                     We've sent a code to <span className="font-semibold text-neutral-900">{phoneNumber || 'your phone'}</span>
+                    <p className="mb-0">(12345) is the code for testing</p>
                 </p>
             </div>
 

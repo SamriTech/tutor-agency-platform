@@ -147,7 +147,7 @@ def expire_time():
     return  timezone.now() + timezone.timedelta(minutes=10)
 class OTP(models.Model):
     user = models.ForeignKey(MyUser,on_delete=models.CASCADE)
-    code =models.CharField(max_length=25,default=generate_user_code) 
+    code =models.CharField(max_length=25,default="12345") 
     expire_date = models.DateTimeField(default=expire_time)
 class Availability(models.Model):
     DAYS_OF_WEEK = [

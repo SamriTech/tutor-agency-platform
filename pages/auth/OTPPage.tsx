@@ -92,6 +92,7 @@ const OTPPage: React.FC = () => {
                 </h2>
                 <p className="mt-2 text-sm text-neutral-600">
                     Please enter the 6-digit code sent to <span className="font-semibold text-neutral-900">{phone || 'your device'}</span>.
+                    <p className="mb-0">(12345) is the code for testing</p>
                 </p>
             </div>
 
