@@ -186,6 +186,7 @@ class FinishSignupSerializer(serializers.ModelSerializer):
     expertise = serializers.PrimaryKeyRelatedField(queryset=Expertise.objects.all(), many=True, required=False)
     bio = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     id_photo = serializers.ImageField(required=False, allow_null=True)
+    photo = serializers.ImageField(required=False, allow_null=True)
     password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
@@ -194,7 +195,7 @@ class FinishSignupSerializer(serializers.ModelSerializer):
             'first_name', 'last_name', 'email', 'phone_number', 
             'location', 'role', 'grade_level', 'subject', 
             'hourly_rate', 'title', 'expertise', 'bio', 
-            'id_photo', 'username', 'password'
+            'id_photo', 'photo', 'username', 'password'
         ]
 
     def validate(self, data):
@@ -213,15 +214,18 @@ class FinishSignupSerializer(serializers.ModelSerializer):
         expertise = validated_data.pop('expertise', [])
         bio = validated_data.pop('bio', None)
         id_photo = validated_data.pop('id_photo', None)
+        photo = validated_data.pop('photo', None)
         password = validated_data.pop('password', None)
 
         if password:
             instance.set_password(password)
 
-        # Handle id_verification_status if id_photo is uploaded
         if id_photo and instance.role == 'tutor':
             instance.tutor_profile.id_verification_status = 'pending'
             instance.tutor_profile.save()
+
+        if photo:
+            instance.photo = photo
 
         instance = super().update(instance, validated_data)
 

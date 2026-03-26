@@ -2,6 +2,8 @@ from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth.hashers import make_password
 import secrets
+import requests
+from django.core.files.base import ContentFile
 from .models import OTP
 
 class CustomAccountAdapter(DefaultAccountAdapter):
@@ -59,9 +61,19 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         
         extra_data = sociallogin.account.extra_data
         if sociallogin.account.provider == "google":
-            picture = extra_data.get("picture")
-            if picture:
-                user.photo = picture
+            picture_url = extra_data.get("picture")
+            if picture_url:
+                try:
+                    response = requests.get(picture_url, timeout=10)
+                    if response.status_code == 200:
+                        # Extract extension or default to .jpg
+                        ext = picture_url.split('.')[-1].split('?')[0]
+                        if len(ext) > 4 or not ext:
+                            ext = 'jpg'
+                        file_name = f"google_avatar_{user.username}.{ext}"
+                        user.photo.save(file_name, ContentFile(response.content), save=False)
+                except Exception as e:
+                    print(f"Failed to download Google profile picture: {e}")
         
         # Ensure we have a username if allauth didn't provide one
         if not user.username:
