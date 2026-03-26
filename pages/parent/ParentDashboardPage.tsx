@@ -12,12 +12,17 @@ import { getMatchingTutors } from '@/features/parent/hooks/getMatchingTutors';
 import { Search, Zap, Star, Filter, Heart, ChevronRight } from 'lucide-react';
 import { useTutorFilterStore } from '@/store/tutorFilterStore';
 import { useNavigate } from 'react-router-dom';
+import { useGrades } from '@/features/auth/hooks';
 
 const ParentDashboardPage: React.FC = () => {
   const user = useAuthStore(state => state.user);
-  const { data: tutors } = getMatchingTutors();
+  const { searchQuery, setSearchQuery, selectedGrade, setSelectedGrade } = useTutorFilterStore();
   const navigate = useNavigate();
-  const { searchQuery, setSearchQuery } = useTutorFilterStore();
+  const { data: tutors } = getMatchingTutors({
+    search: searchQuery,
+    grade_level: selectedGrade
+  });
+  const { data: gradeOptions } = useGrades();
 
   const handleSearch = () => {
     navigate('/parent/find-tutors');
@@ -77,10 +82,15 @@ const ParentDashboardPage: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest block mb-3">Grade Level</label>
-                  <select className="w-full p-3 bg-neutral-50 border-2 border-neutral-50 rounded-xl font-bold text-sm focus:border-primary/20 outline-none transition-all">
-                    <option>High School (9-12)</option>
-                    <option>Middle School (6-8)</option>
-                    <option>Elementary (1-5)</option>
+                  <select
+                    value={selectedGrade || ''}
+                    onChange={(e) => setSelectedGrade(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full p-3 bg-neutral-50 border-2 border-neutral-50 rounded-xl font-bold text-sm focus:border-primary/20 outline-none transition-all"
+                  >
+                    <option value="">All Grades</option>
+                    {gradeOptions?.results?.map((grade: any) => (
+                      <option key={grade.id} value={grade.id}>{grade.name}</option>
+                    ))}
                   </select>
                 </div>
 

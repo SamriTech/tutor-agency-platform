@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AdminNavbar from '../../components/admin/AdminNavbar';
 import Footer from '../../components/ui/Footer';
+import { Link } from 'react-router-dom';
 import { useAdminUsers, useUserAction } from '../../features/admin/hooks/useAdminVerifications';
 import {
     Search,
@@ -108,16 +109,18 @@ const AdminUsersPage: React.FC = () => {
                                 <div className="flex items-start justify-between mb-6">
                                     <div className="flex gap-4">
                                         <div className="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center text-neutral-400 overflow-hidden border border-neutral-100">
-                                            {user.id_photo ? (
-                                                <img src={user.id_photo} alt={user.username} className="w-full h-full object-cover" />
+                                            {user.photo ? (
+                                                <img src={user.photo} alt={user.username} className="w-full h-full object-cover" />
                                             ) : (
                                                 <span className="text-xl font-black">{user.first_name?.[0] || user.username[0]}</span>
                                             )}
                                         </div>
                                         <div>
-                                            <h3 className="font-black text-neutral-900 group-hover:text-primary transition-colors underline decoration-transparent group-hover:decoration-primary/30">
-                                                {user.first_name} {user.last_name}
-                                            </h3>
+                                            <Link to={`/admin/edit-user/${activeTab}/${user.id}`}>
+                                                <h3 className="font-black text-neutral-900 group-hover:text-primary transition-colors underline decoration-transparent group-hover:decoration-primary/30">
+                                                    {user.first_name} {user.last_name}
+                                                </h3>
+                                            </Link>
                                             <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-0.5">@{user.username}</p>
                                         </div>
                                     </div>

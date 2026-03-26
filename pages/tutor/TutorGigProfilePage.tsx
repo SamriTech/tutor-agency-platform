@@ -1,27 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
-import { queryClient } from '../../providers/QueryProvider';
-import { AuthGuard } from '../../features/auth/AuthGuard';
-import { RoleGuard } from '../../features/auth/RoleGuard';
-import { Role } from '../../types';
-import ProfileLayout from '../../components/ui/ProfileLayout';
 import {
+    useUser,
+    useUpdateProfile,
+    useSubjects,
+    useExpertise,
     useQualifications,
     useAddQualification,
     useDeleteQualification,
-    useUpdateProfile,
-    useSubjects,
     useAvailability,
     useAddAvailability,
     useDeleteAvailability,
     checkUsernameAvailability,
     useProfilePasswordChange,
     useRequestPhoneChange,
-    useVerifyPhoneChange,
-    useExpertise
-} from '../../features/auth/hooks';
+    useVerifyPhoneChange
+} from '@/features/auth/hooks';
+import { queryClient } from '../../providers/QueryProvider';
+import { AuthGuard } from '../../features/auth/AuthGuard';
+import { RoleGuard } from '../../features/auth/RoleGuard';
+import { Role } from '../../types';
+import ProfileLayout from '../../components/ui/ProfileLayout';
 import SubjectSelector from '../../components/ui/SubjectSelector';
 import ExpertiseSelector from '../../components/ui/ExpertiseSelector';
 import {
@@ -67,6 +68,15 @@ const TutorGigProfilePage: React.FC = () => {
     const { mutateAsync: verifyPhoneChange, isPending: verifyingPhoneChange } = useVerifyPhoneChange();
     const { showNotification } = useNotificationStore();
 
+    const { id } = useParams<{ id: string }>();
+    const isAdminEditing = !!id && (user?.role === Role.Admin);
+    const targetUserId = id ? parseInt(id) : undefined;
+
+    const { data: targetUser, isLoading: loadingTargetUser, updateMutation: adminUpdateProfile } = useUser(isAdminEditing ? targetUserId : undefined);
+
+    const activeUser = isAdminEditing ? targetUser : user;
+    const isUpdating = isAdminEditing ? adminUpdateProfile.isPending : updatingProfile;
+
     // UI State
     const [isEditing, setIsEditing] = useState(false);
     const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -76,19 +86,22 @@ const TutorGigProfilePage: React.FC = () => {
     // Username Check State
     const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
     const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
     // Form State
     const [gigData, setGigData] = useState({
-        username: user?.username || '',
-        firstName: user?.first_name || '',
-        lastName: user?.last_name || '',
-        email: user?.email || '',
-        location: user?.location || '',
-        title: user?.tutor_profile?.title || '',
-        bio: user?.tutor_profile?.bio || '',
-        hourlyRate: user?.tutor_profile?.hourly_rate || '',
-        subjects: user?.subject?.map((s: any) => s.id) || [] as number[],
-        expertise: user?.tutor_profile?.expertise?.map((e: any) => e.id) || [] as number[]
+        username: activeUser?.username || '',
+        firstName: activeUser?.first_name || '',
+        lastName: activeUser?.last_name || '',
+        email: activeUser?.email || '',
+        location: activeUser?.location || '',
+        title: activeUser?.tutor_profile?.title || '',
+        bio: activeUser?.tutor_profile?.bio || '',
+        hourlyRate: activeUser?.tutor_profile?.hourly_rate || '',
+        subjects: activeUser?.subject?.map((s: any) => s.id) || [] as number[],
+        expertise: activeUser?.tutor_profile?.expertise?.map((e: any) => e.id) || [] as number[]
     });
 
     const [passwordData, setPasswordData] = useState({
@@ -104,22 +117,22 @@ const TutorGigProfilePage: React.FC = () => {
 
     // Sync from user store
     useEffect(() => {
-        if (user) {
+        if (activeUser) {
             setGigData({
-                username: user.username || '',
-                firstName: user.first_name || '',
-                lastName: user.last_name || '',
-                email: user.email || '',
-                location: user.location || '',
-                title: user.tutor_profile?.title || '',
-                bio: user.tutor_profile?.bio || '',
-                hourlyRate: user.tutor_profile?.hourly_rate || '',
-                subjects: user.subject?.map((s: any) => s.id) || [],
-                expertise: user.tutor_profile?.expertise?.map((e: any) => e.id) || []
+                username: activeUser.username || '',
+                firstName: activeUser.first_name || '',
+                lastName: activeUser.last_name || '',
+                email: activeUser.email || '',
+                location: activeUser.location || '',
+                title: activeUser.tutor_profile?.title || '',
+                bio: activeUser.tutor_profile?.bio || '',
+                hourlyRate: activeUser.tutor_profile?.hourly_rate || '',
+                subjects: activeUser.subject?.map((s: any) => s.id) || [],
+                expertise: activeUser.tutor_profile?.expertise?.map((e: any) => e.id) || []
             });
-            if (user.tutor_profile?.id_photo) setIdPreview(user.tutor_profile.id_photo);
+            if (activeUser.tutor_profile?.id_photo) setIdPreview(activeUser.tutor_profile.id_photo);
         }
-    }, [user]);
+    }, [activeUser]);
 
     const checkUsername = async (value: string) => {
         if (!value || value === user?.username) {
@@ -143,6 +156,22 @@ const TutorGigProfilePage: React.FC = () => {
         if (name === 'username') checkUsername(value);
     }
 
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setSelectedPhoto(file);
+            setPhotoPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setIdPhoto(file);
+            setIdPreview(URL.createObjectURL(file));
+        }
+    };
+
     const handleSaveProfile = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         const formData = new FormData();
@@ -155,14 +184,23 @@ const TutorGigProfilePage: React.FC = () => {
         formData.append('bio', gigData.bio);
         formData.append('hourly_rate', gigData.hourlyRate.toString());
 
+        if (selectedPhoto) {
+            formData.append('photo', selectedPhoto);
+        }
+
         gigData.subjects.forEach(s => formData.append('subject', s.toString()));
         gigData.expertise.forEach(e => formData.append('expertise', e.toString()));
         if (idPhoto) formData.append('id_photo', idPhoto);
 
         try {
-            await updateProfile(formData as any);
+            if (isAdminEditing) {
+                await adminUpdateProfile.mutateAsync(formData);
+            } else {
+                await updateProfile(formData as any);
+            }
             setIsEditing(false);
             setIdVerificationDropped(false);
+            setSelectedPhoto(null);
             showNotification("Profile updated successfully!", "success");
             queryClient.invalidateQueries();
         } catch (err) {
@@ -246,14 +284,6 @@ const TutorGigProfilePage: React.FC = () => {
         }
     };
 
-    const handleIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setIdPhoto(file);
-            setIdPreview(URL.createObjectURL(file));
-        }
-    };
-
     const toggleSubject = (id: number) => {
         setGigData(prev => ({
             ...prev,
@@ -272,20 +302,38 @@ const TutorGigProfilePage: React.FC = () => {
         }));
     };
     console.log(user)
+    if (isAdminEditing && loadingTargetUser) return (
+        <ProfileLayout userRole="admin" pageTitle="Admin Edit Profile">
+            <div className="flex items-center justify-center h-64">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+        </ProfileLayout>
+    );
+
     return (
-        <ProfileLayout userRole="tutor" pageTitle="Tutor Profile Management">
+        <ProfileLayout userRole={isAdminEditing ? "admin" : "tutor"} pageTitle={isAdminEditing ? `Edit User: ${activeUser?.username}` : "Tutor Profile Management"}>
             <div className="space-y-6 pb-20">
                 {/* Header Profile Info */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-neutral-100 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
                         <div className="relative group">
+                            <input
+                                type="file"
+                                ref={photoInputRef}
+                                onChange={handlePhotoChange}
+                                className="hidden"
+                                accept="image/*"
+                            />
                             <img
-                                src={user?.photo || `https://ui-avatars.com/api/?name=${gigData.firstName}+${gigData.lastName}&background=4C1D95&color=fff&size=128`}
+                                src={photoPreview || activeUser?.photo || `https://ui-avatars.com/api/?name=${gigData.firstName}+${gigData.lastName}&background=4C1D95&color=fff&size=128`}
                                 alt={gigData.username}
                                 className="w-24 h-24 rounded-full border-4 border-neutral-50 shadow-sm object-cover transition-transform group-hover:scale-105"
                             />
                             {isEditing && (
-                                <button className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg border-2 border-white hover:bg-primary-dark transition-colors">
+                                <button
+                                    onClick={() => photoInputRef.current?.click()}
+                                    className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg border-2 border-white hover:bg-primary-dark transition-colors"
+                                >
                                     <Camera className="w-4 h-4" />
                                 </button>
                             )}
@@ -293,7 +341,7 @@ const TutorGigProfilePage: React.FC = () => {
                         <div className="text-center md:text-left flex-1">
                             <div className="flex items-center justify-center md:justify-start space-x-2">
                                 <h2 className="text-2xl font-black text-neutral-900">{gigData.firstName} {gigData.lastName}</h2>
-                                {user?.id_verification_status === 'verified' && (
+                                {activeUser?.id_verification_status === 'verified' && (
                                     <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-600 rounded-full text-[8px] font-black border border-green-100">
                                         <ShieldCheck className="w-2.5 h-2.5" />
                                         CERTIFIED
@@ -303,13 +351,13 @@ const TutorGigProfilePage: React.FC = () => {
                             <p className="text-neutral-500 font-bold">@{gigData.username}</p>
                             <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                                 <div className="px-3 py-1 bg-primary/5 text-primary text-[10px] font-black rounded-full border border-primary/10">
-                                    {user?.balance || 0} ETB
+                                    {activeUser?.balance || 0} ETB
                                 </div>
                                 <div className="px-3 py-1 bg-neutral-100 text-neutral-600 text-[10px] font-black rounded-full border border-neutral-200">
-                                    {user?.rating || '0.0'} ⭐ Rating
+                                    {activeUser?.rating || '0.0'} ⭐ Rating
                                 </div>
                                 <div className="px-3 py-1 bg-neutral-100 text-neutral-600 text-[10px] font-black rounded-full border border-neutral-200">
-                                    Joined {user?.date_joined ? new Date(user.date_joined).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'N/A'}
+                                    Joined {activeUser?.date_joined ? new Date(activeUser.date_joined).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'N/A'}
                                 </div>
                             </div>
                             <div className="flex gap-4 flex-wrap">
@@ -515,16 +563,16 @@ const TutorGigProfilePage: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => handleSaveProfile()}
-                                disabled={updatingProfile || isUsernameAvailable === false}
+                                disabled={isUpdating || isUsernameAvailable === false}
                                 className="px-8 py-3 text-[10px] font-black text-white bg-primary rounded-xl hover:bg-primary-dark shadow-xl shadow-primary/20 transition-all flex items-center space-x-2 disabled:opacity-50 uppercase tracking-widest"
                             >
-                                {updatingProfile ? 'Saving...' : 'Save All Changes'}
+                                {isUpdating ? 'Saving...' : 'Save All Changes'}
                             </button>
                         </div>
                     )}
 
                     {/* ID Verification Section (Conditional) */}
-                    {user?.id_verification_status === 'verified' ? (
+                    {activeUser?.id_verification_status === 'verified' ? (
                         <div className="bg-green-50 p-8 rounded-[32px] text-green-800 overflow-hidden relative flex items-center gap-4 animate-in fade-in duration-500">
                             <ShieldCheck className="w-10 h-10 text-green-600 flex-shrink-0" />
                             <div>
@@ -605,8 +653,8 @@ const TutorGigProfilePage: React.FC = () => {
                         <div className="space-y-4">
                             <div className="p-4 bg-neutral-50 rounded-xl border border-neutral-100">
                                 <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Current Number</p>
-                                <p className="text-sm font-black text-neutral-700">{user?.phone_number || 'Not set'}</p>
-                                {user?.is_phone_verified ? (
+                                <p className="text-sm font-black text-neutral-700">{activeUser?.phone_number || 'Not set'}</p>
+                                {activeUser?.is_phone_verified ? (
                                     <div className="flex items-center mt-1 text-green-500 text-[10px] font-black">
                                         <ShieldCheck className="w-3 h-3 mr-1" />
                                         Verified
@@ -923,8 +971,6 @@ const TutorGigProfilePage: React.FC = () => {
 
 export default () => (
     <AuthGuard>
-        <RoleGuard role={Role.Tutor}>
-            <TutorGigProfilePage />
-        </RoleGuard>
+        <TutorGigProfilePage />
     </AuthGuard>
 );

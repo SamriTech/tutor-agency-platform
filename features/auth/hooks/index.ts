@@ -19,3 +19,4 @@ export * from "./useAddReview";
 export * from "./useChapa";
 export * from "./useGrades";
 export * from "./useExpertise";
+export * from "./useUser";

@@ -1,20 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
-import { queryClient } from '../../providers/QueryProvider';
-import { AuthGuard } from '../../features/auth/AuthGuard';
-import { RoleGuard } from '../../features/auth/RoleGuard';
-import { Role } from '../../types';
-import ProfileLayout from '../../components/ui/ProfileLayout';
 import {
+    useGrades,
+    useUser,
     useUpdateProfile,
     useSubjects,
     checkUsernameAvailability,
     useProfilePasswordChange,
     useRequestPhoneChange,
-    useVerifyPhoneChange,
-    useGrades
-} from '../../features/auth/hooks';
+    useVerifyPhoneChange
+} from '@/features/auth/hooks';
+import { queryClient } from '../../providers/QueryProvider';
+import { AuthGuard } from '../../features/auth/AuthGuard';
+import { RoleGuard } from '../../features/auth/RoleGuard';
+import { Role } from '../../types';
+import ProfileLayout from '../../components/ui/ProfileLayout';
 import SubjectSelector from '../../components/ui/SubjectSelector';
 import {
     Check,
@@ -42,6 +44,15 @@ const ParentProfilePage: React.FC = () => {
     const { showNotification } = useNotificationStore();
     const { data: grades } = useGrades();
 
+    const { id } = useParams<{ id: string }>();
+    const isAdminEditing = !!id && (user?.role === Role.Admin);
+    const targetUserId = id ? parseInt(id) : undefined;
+
+    const { data: targetUser, isLoading: loadingTargetUser, updateMutation: adminUpdateProfile } = useUser(isAdminEditing ? targetUserId : undefined);
+
+    const activeUser = isAdminEditing ? targetUser : user;
+    const isUpdating = isAdminEditing ? adminUpdateProfile.isPending : updatingProfile;
+
     const [isEditing, setIsEditing] = useState(false);
     const [showPasswordChange, setShowPasswordChange] = useState(false);
     const [showPhoneChangeModal, setShowPhoneChangeModal] = useState(false);
@@ -49,16 +60,19 @@ const ParentProfilePage: React.FC = () => {
     // Username Check State
     const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
     const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
     const [parentData, setParentData] = useState({
-        username: user?.username || '',
-        firstName: user?.first_name || '',
-        lastName: user?.last_name || '',
-        email: user?.email || '',
-        phone: user?.phone_number || '',
-        location: user?.location || '',
-        studentGradeLevel: user?.student_profile?.grade_level || '',
-        subjects: user?.subject?.map((s: any) => s.id) || [] as number[]
+        username: activeUser?.username || '',
+        firstName: activeUser?.first_name || '',
+        lastName: activeUser?.last_name || '',
+        email: activeUser?.email || '',
+        phone: activeUser?.phone_number || '',
+        location: activeUser?.location || '',
+        studentGradeLevel: activeUser?.student_profile?.grade_level || '',
+        subjects: activeUser?.subject?.map((s: any) => s.id) || [] as number[]
     });
 
     const [passwordData, setPasswordData] = useState({
@@ -71,19 +85,19 @@ const ParentProfilePage: React.FC = () => {
     const [verificationCode, setVerificationCode] = useState('');
 
     useEffect(() => {
-        if (user) {
+        if (activeUser) {
             setParentData({
-                username: user.username || '',
-                firstName: user.first_name || '',
-                lastName: user.last_name || '',
-                email: user.email || '',
-                phone: user.phone_number || '',
-                location: user.location || '',
-                studentGradeLevel: user.student_profile?.grade_level || '',
-                subjects: user.subject?.map((s: any) => s.id) || []
+                username: activeUser.username || '',
+                firstName: activeUser.first_name || '',
+                lastName: activeUser.last_name || '',
+                email: activeUser.email || '',
+                phone: activeUser.phone_number || '',
+                location: activeUser.location || '',
+                studentGradeLevel: activeUser.student_profile?.grade_level || '',
+                subjects: activeUser.subject?.map((s: any) => s.id) || []
             });
         }
-    }, [user]);
+    }, [activeUser]);
 
     const checkUsername = async (value: string) => {
         if (!value || value === user?.username) {
@@ -109,6 +123,13 @@ const ParentProfilePage: React.FC = () => {
             checkUsername(value);
         }
     }
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setSelectedPhoto(file);
+            setPhotoPreview(URL.createObjectURL(file));
+        }
+    };
 
     const toggleSubject = (id: number) => {
         setParentData(prev => ({
@@ -173,10 +194,17 @@ const ParentProfilePage: React.FC = () => {
         if (parentData.studentGradeLevel) {
             formData.append('grade_level', parentData.studentGradeLevel.toString());
         }
+        if (selectedPhoto) {
+            formData.append('photo', selectedPhoto);
+        }
         parentData.subjects.forEach(s => formData.append('subject', s.toString()));
 
         try {
-            await updateProfile(formData as any);
+            if (isAdminEditing) {
+                await adminUpdateProfile.mutateAsync(formData);
+            } else {
+                await updateProfile(formData as any);
+            }
             setIsEditing(false);
             showNotification("Profile updated successfully!", "success");
             queryClient.invalidateQueries();
@@ -185,20 +213,38 @@ const ParentProfilePage: React.FC = () => {
             showNotification("Error updating profile", "error");
         }
     }
+    if (isAdminEditing && loadingTargetUser) return (
+        <ProfileLayout userRole="admin" pageTitle="Admin Edit Profile">
+            <div className="flex items-center justify-center h-64">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+        </ProfileLayout>
+    );
+
     return (
-        <ProfileLayout userRole="parent" pageTitle="Manage Profile">
+        <ProfileLayout userRole={isAdminEditing ? "admin" : "parent"} pageTitle={isAdminEditing ? `Edit User: ${activeUser?.username}` : "Manage Profile"}>
             <div className="space-y-6 pb-20">
                 {/* Header Profile Info */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-neutral-100 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
                         <div className="relative group">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handlePhotoChange}
+                                className="hidden"
+                                accept="image/*"
+                            />
                             <img
-                                src={user?.photo || `https://ui-avatars.com/api/?name=${parentData?.firstName}+${parentData?.lastName}&background=4C1D95&color=fff&size=128`}
+                                src={photoPreview || activeUser?.photo || `https://ui-avatars.com/api/?name=${parentData?.firstName}+${parentData?.lastName}&background=4C1D95&color=fff&size=128`}
                                 alt={parentData.username}
                                 className="w-24 h-24 rounded-full border-4 border-neutral-50 shadow-sm object-cover transition-transform group-hover:scale-105"
                             />
                             {isEditing && (
-                                <button className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg border-2 border-white hover:bg-primary-dark transition-colors">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg border-2 border-white hover:bg-primary-dark transition-colors"
+                                >
                                     <UserIcon className="w-4 h-4" />
                                 </button>
                             )}
@@ -206,7 +252,7 @@ const ParentProfilePage: React.FC = () => {
                         <div className="text-center md:text-left flex-1">
                             <div className="flex items-center justify-center md:justify-start space-x-2">
                                 <h2 className="text-2xl font-black text-neutral-900">{parentData?.firstName} {parentData?.lastName}</h2>
-                                {user?.is_phone_verified && (
+                                {activeUser?.is_phone_verified && (
                                     <div className="flex items-center gap-1 px-2 py-0.5 bg-primary/5 text-primary rounded-full text-[8px] font-black border border-primary/10">
                                         <ShieldCheck className="w-2.5 h-2.5" />
                                         VERIFIED
@@ -216,10 +262,10 @@ const ParentProfilePage: React.FC = () => {
                             <p className="text-neutral-500 font-bold">@{parentData.username}</p>
                             <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                                 <div className="px-3 py-1 bg-primary/5 text-primary text-[10px] font-black rounded-full border border-primary/10">
-                                    {user?.balance || 0} ETB
+                                    {activeUser?.balance || 0} ETB
                                 </div>
                                 <div className="px-3 py-1 bg-neutral-100 text-neutral-600 text-[10px] font-black rounded-full border border-neutral-200">
-                                    {user?.student_profile?.grade_level_name || 'No Grade'} Student
+                                    {activeUser?.student_profile?.grade_level_name || 'No Grade'} Student
                                 </div>
                             </div>
                             {!isEditing && (
@@ -392,10 +438,10 @@ const ParentProfilePage: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={updatingProfile || isUsernameAvailable === false}
+                                    disabled={isUpdating || isUsernameAvailable === false}
                                     className="px-8 py-3 text-xs font-black text-white bg-primary rounded-xl hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all flex items-center space-x-2 disabled:opacity-50 uppercase tracking-widest"
                                 >
-                                    {updatingProfile ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                    {isUpdating ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                     <span>Save Changes</span>
                                 </button>
                             </div>
@@ -413,8 +459,8 @@ const ParentProfilePage: React.FC = () => {
                             <div className="space-y-4">
                                 <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-100">
                                     <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wider mb-1">Current Number</p>
-                                    <p className="text-sm font-black text-neutral-900">{user?.phone_number || 'Not verified'}</p>
-                                    {user?.is_phone_verified ? (
+                                    <p className="text-sm font-black text-neutral-900">{activeUser?.phone_number || 'Not verified'}</p>
+                                    {activeUser?.is_phone_verified ? (
                                         <div className="inline-flex items-center mt-2 px-2 py-0.5 bg-green-50 text-green-600 rounded-full text-[8px] font-black border border-green-100">
                                             <ShieldCheck className="w-2.5 h-2.5 mr-1" />
                                             VERIFIED
@@ -557,7 +603,7 @@ const ParentProfilePage: React.FC = () => {
 
 export default () => (
     <AuthGuard>
-        <RoleGuard role={Role.Parent}>
+        <RoleGuard role={Role.Parent} secondaryRole={Role.Admin}>
             <ParentProfilePage />
         </RoleGuard>
     </AuthGuard>

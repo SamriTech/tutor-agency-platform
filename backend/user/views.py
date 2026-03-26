@@ -31,7 +31,7 @@ from rest_framework.response import Response
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from dj_rest_auth.registration.views import RegisterView
-from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import GenericAPIView,RetrieveUpdateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from .utils import verify_phone_util
 from .adapter import CustomAccountAdapter
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -100,11 +100,21 @@ class MeProfileUpdateView(UpdateAPIView):
     def post(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
 
-class UserByIDView(RetrieveAPIView):
+class UserByIDView(RetrieveUpdateAPIView):
     queryset = MyUser.objects.all()
     serializer_class = CustomUserDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = 'id'
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return FinishSignupSerializer
+        return CustomUserDetailSerializer
+
+    def update(self, request, *args, **kwargs):
+        if not request.user.is_staff:
+            return Response({"error": "Only admins can update other users profiles."}, status=403)
+        return super().update(request, *args, **kwargs)
 
 # Qualification Views
 class QualificationListCreateView(ListCreateAPIView):

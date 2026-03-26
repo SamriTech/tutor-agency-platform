@@ -9,6 +9,7 @@ export interface AdminUserVerification {
     last_name: string;
     email: string;
     id_photo: string | null;
+    photo: string | null;
     is_id_verified: boolean;
     is_active: boolean;
     role: string;
