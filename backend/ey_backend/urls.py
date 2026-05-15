@@ -20,7 +20,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
 urlpatterns = [
-    # path('admin/', admin.site.urls),
+    path('admin-ios/', admin.site.urls),
     path("api/auth/",include("user.urls")),
     path("api/core/",include("core.urls")),
     path('api/manager/',include("manager.urls")),
