@@ -36,7 +36,7 @@ import { HelmetProvider } from 'react-helmet-async';
 
 
 const App: React.FC = () => {
-  const googleClientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '';
+  const googleClientId = "926582574605-hi46pqp84db3ktb5hsh0jg56h00belo4.apps.googleusercontent.com";
 
   return (
     <HelmetProvider>
