@@ -6,4 +6,5 @@ checklist.MD
 frontend/
 frontend
 db.sqlite3
+staticroot/
 mediafiles/
