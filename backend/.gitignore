@@ -6,3 +6,4 @@ checklist.MD
 frontend/
 frontend
 db.sqlite3
+mediafiles/

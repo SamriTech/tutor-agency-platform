@@ -66,11 +66,11 @@ const TutorDashboardPage: React.FC = () => {
                                     <Star className="w-5 h-5 fill-current" />
                                 </div>
                             </div>
-                            <p className="text-4xl font-black text-neutral-900">4.9</p>
+                            <p className="text-4xl font-black text-neutral-900">{user?.rating || '0.0'}</p>
                             <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mt-1 block">OUT OF 5.0</span>
                         </div>
-                        <Link to="/tutor/gig-profile" className="mt-6 flex items-center text-[10px] font-black text-primary uppercase tracking-widest hover:gap-2 transition-all">
-                            View Public Profile <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                        <Link to="/tutor/reviews" className="mt-6 flex items-center text-[10px] font-black text-primary uppercase tracking-widest hover:gap-2 transition-all">
+                            View All Reviews <ChevronRight className="w-3.5 h-3.5 ml-1" />
                         </Link>
                     </div>
 

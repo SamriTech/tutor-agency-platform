@@ -7,19 +7,21 @@ class TutorMatcher:
         self.parent_user = parent_user
         self.search_params = search_params or {}
         
-        # Weights
-        self.w_subject = 0.35
-        self.w_grade = 0.25
-        self.w_review = 0.15
-        self.w_num = 0.15
+        # Weights (Adjusted to include availability)
+        self.w_subject = 0.30
+        self.w_grade = 0.20
+        self.w_review = 0.10
+        self.w_num = 0.10
         self.w_mode = 0.05
-        self.w_loc = 0.15
+        self.w_loc = 0.10
+        self.w_avail = 0.15
 
     def get_parent_request(self):
         # Extract parent profile data - prioritize profile over search params
         grade_level = self.search_params.get('grade_level', "").lower()
         subject = self.search_params.get('subject_name', "").lower()
         location = self.search_params.get('location', "").lower()
+        availability = self.search_params.get('availability', [])
 
         if self.parent_user:
             if hasattr(self.parent_user, 'student_profile') and self.parent_user.student_profile:
@@ -37,7 +39,8 @@ class TutorMatcher:
             "subject": subject,
             "grade_level": grade_level,
             "mode": self.search_params.get('mode', "Online"),
-            "location": location
+            "location": location,
+            "availability": availability
         }
 
     def prepare_data(self):
@@ -57,6 +60,22 @@ class TutorMatcher:
             # Collect review comments for text analysis
             all_reviews = " ".join([r.comment.lower() for r in tutor.reviews_received.all() if r.comment])
             
+            # Process availability
+            avail_patterns = set()
+            for avail in tutor.tutor_profile.availabilities.all():
+                if avail.day_of_week in [5, 6]:
+                    avail_patterns.add("Weekends")
+                else:
+                    avail_patterns.add("Weekdays")
+                
+                # Morning: 5 AM to 12 PM
+                if avail.start_time.hour >= 5 and avail.start_time.hour < 12:
+                    avail_patterns.add("Morning")
+                
+                # Evening: 5 PM onwards
+                if avail.end_time.hour >= 17 or avail.start_time.hour >= 17:
+                    avail_patterns.add("Evening")
+
             data.append({
                 "id": tutor.id,
                 "subjects": set(subjects),
@@ -66,7 +85,8 @@ class TutorMatcher:
                 "rating": float(rating),
                 "location": (tutor.location or "").lower(),
                 "review_content": all_reviews,
-                "original_obj": tutor # Keep reference if needed for serializer
+                "availability": avail_patterns,
+                "original_obj": tutor
             })
         return data
 
@@ -120,10 +140,18 @@ class TutorMatcher:
             # 4. Mode Similarity
             sim_m = 1.0 if request["mode"] == tutor["mode"] else 0.0
             
-            # 5. Review Text Similarity (Match search subject against review content)
+            # 5. Review Text Similarity
             review_sim = self.calculate_text_sim(request["subject"], tutor["review_content"])
             
-            # 6. Numerical Scoring (Manual MinMax Scaling)
+            # 6. Availability Similarity
+            avail_score = 0.0
+            if request["availability"]:
+                matches = [a for a in request["availability"] if a in tutor["availability"]]
+                avail_score = len(matches) / len(request["availability"])
+            else:
+                avail_score = 1.0 # No preference means all are fine
+
+            # 7. Numerical Scoring
             exp_score = (tutor["experience"] - min_exp) / (max_exp - min_exp) if max_exp > min_exp else 1.0
             rat_score = (tutor["rating"] - min_rat) / (max_rat - min_rat) if max_rat > min_rat else 1.0
             num_sim = (exp_score + rat_score) / 2.0
@@ -135,13 +163,13 @@ class TutorMatcher:
                 self.w_review * review_sim +
                 self.w_num * num_sim +
                 self.w_mode * sim_m +
-                self.w_loc * sim_l
+                self.w_loc * sim_l +
+                self.w_avail * avail_score
             )
 
         # Sort and return
         tutors_data.sort(key=lambda x: x["match_score"], reverse=True)
         
-        # Return as a simple list of dicts with 'id' and 'match_score' to match views.py usage
         results = []
         for d in tutors_data:
             results.append({

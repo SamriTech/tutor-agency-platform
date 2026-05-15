@@ -16,11 +16,12 @@ import { useGrades } from '@/features/auth/hooks';
 
 const ParentDashboardPage: React.FC = () => {
   const user = useAuthStore(state => state.user);
-  const { searchQuery, setSearchQuery, selectedGrade, setSelectedGrade } = useTutorFilterStore();
+  const { searchQuery, setSearchQuery, selectedGrade, setSelectedGrade, availability, toggleAvailability } = useTutorFilterStore();
   const navigate = useNavigate();
   const { data: tutors } = getMatchingTutors({
     search: searchQuery,
-    grade_level: selectedGrade
+    grade_level: selectedGrade,
+    availability: availability
   });
   const { data: gradeOptions } = useGrades();
 
@@ -97,10 +98,12 @@ const ParentDashboardPage: React.FC = () => {
                 <div>
                   <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest block mb-3">Availability</label>
                   <div className="space-y-3">
-                    {['Weekends', 'Weekdays', 'Evenings'].map(opt => (
-                      <label key={opt} className="flex items-center gap-3 group cursor-pointer">
-                        <div className="w-5 h-5 border-2 border-neutral-200 rounded-md group-hover:border-primary transition-colors"></div>
-                        <span className="text-sm font-bold text-neutral-600">{opt}</span>
+                    {['Weekends', 'Weekdays', 'Morning', 'Evening'].map(opt => (
+                      <label key={opt} className="flex items-center gap-3 group cursor-pointer" onClick={() => toggleAvailability(opt)}>
+                        <div className={`w-5 h-5 border-2 rounded-md transition-all flex items-center justify-center ${availability.includes(opt) ? 'bg-primary border-primary shadow-[0_0_10px_rgba(76,29,149,0.3)]' : 'border-neutral-200 group-hover:border-primary/50'}`}>
+                          {availability.includes(opt) && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                        </div>
+                        <span className={`text-sm font-bold transition-colors ${availability.includes(opt) ? 'text-neutral-900' : 'text-neutral-500 group-hover:text-neutral-700'}`}>{opt}</span>
                       </label>
                     ))}
                   </div>

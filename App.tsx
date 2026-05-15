@@ -27,6 +27,7 @@ import TutorGigProfilePage from './pages/tutor/TutorGigProfilePage';
 import BalanceHistoryPage from './pages/shared/BalanceHistoryPage';
 import SessionPage from './pages/session/SessionPage';
 import VerificationStatusPage from './pages/shared/VerificationStatusPage';
+import TutorReviewsPage from './pages/tutor/TutorReviewsPage';
 import AuthInitializer from "./features/auth/AuthInitializer";
 import Toast from './components/ui/Toast';
 import { Role } from './types';
@@ -79,6 +80,7 @@ const App: React.FC = () => {
               <Route path="/tutor/wallet" element={<BalanceHistoryPage />} />
 
               <Route path="/tutor/sessions" element={<MySessionsPage />} />
+              <Route path="/tutor/reviews" element={<TutorReviewsPage />} />
               <Route path="/tutor/requests/:id" element={<TutorRequestDetailPage />} />
 
               {/* ADMIN */}

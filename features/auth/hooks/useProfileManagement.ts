@@ -28,4 +28,8 @@ export const checkUsernameAvailability = async (username: string) => {
     return res.data;
 };
 
-// Connection History hook moved to useConnectionHistory.ts
+export const useDeleteAccount = () => {
+    return useMutation({
+        mutationFn: () => api.delete("/api/auth/account/delete/"),
+    });
+};

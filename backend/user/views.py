@@ -407,7 +407,8 @@ class UserListView(ListAPIView):
                 "subject_name": subject_name,
                 "grade_level": request.query_params.get('grade_level', ""),
                 "location": request.query_params.get('location', ""),
-                "mode": request.query_params.get('mode', "Online")
+                "mode": request.query_params.get('mode', "Online"),
+                "availability": request.query_params.getlist('availability') or request.query_params.getlist('availability[]')
             }
             
             # 3. Matching
@@ -777,6 +778,22 @@ class UpdateDeleteBookingView(GenericAPIView):
         tutoring_request.delete()
         return Response({"status":"success","message":"Booking deleted successfully"}, status=200)
             
+class DeleteAccountView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        user.delete()
+        response = Response({"status": "success", "message": "Account deleted successfully"}, status=200)
+        response.delete_cookie('jwt-access-token', samesite="None")
+        response.delete_cookie('jwt-refresh-token', samesite="None")
+        return response
+
+class TutorReviewsView(ListAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+    def get_queryset(self):
+        return Review.objects.filter(reviewee=self.request.user).order_by('-created_at')
+
 class ReviewListCreateView(ListCreateAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer

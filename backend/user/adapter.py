@@ -3,6 +3,7 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.contrib.auth.hashers import make_password
 import secrets
 import requests
+import threading
 from django.core.files.base import ContentFile
 from .models import OTP
 
@@ -27,30 +28,33 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         user.save()
         if user.phone_number:
             otp_obj, created = OTP.objects.get_or_create(user=user)
-            self.send_verification_code_sms(user, str(user.phone_number), otp_obj.code)
+            threading.Thread(target=self.send_verification_code_sms, args=(user, str(user.phone_number), otp_obj.code)).start()
         return user
     def send_verification_code_sms(self, user, phone, code, **kwargs):
-        import requests
-        import os
-        
-        sms_key = os.getenv("SMS_KEY")
-        if not sms_key:
-            print(f"SMS_KEY not found in environment. Code for {phone}: {code}")
-            return
-
-        try:
-            url = "https://smsethiopia.et/api/sms/send"
-            clean_phone = phone[1:]
-            payload = {
-                "msisdn": clean_phone,
-                "text": f"Your Hytor verification code is: {code}",
-            }
+        def _send():
+            import requests
+            import os
             
-            response = requests.post(url, json=payload,verify=False, headers={"KEY": sms_key,"Content-Type": "application/json"})
-            response.raise_for_status()
-            print(f"SMS sent successfully to {clean_phone} - {code}")
-        except Exception as e:
-            print(f"Failed to send SMS to {phone}: {str(e)}")
+            sms_key = os.getenv("SMS_KEY")
+            if not sms_key:
+                print(f"SMS_KEY not found in environment. Code for {phone}: {code}")
+                return
+
+            try:
+                url = "https://smsethiopia.et/api/sms/send"
+                clean_phone = phone.replace("+", "") # Better cleaning
+                payload = {
+                    "msisdn": clean_phone,
+                    "text": f"Your Hytor verification code is: {code}",
+                }
+                
+                response = requests.post(url, json=payload, verify=False, headers={"KEY": sms_key, "Content-Type": "application/json"}, timeout=10)
+                response.raise_for_status()
+                print(f"SMS sent successfully to {clean_phone} - {code}")
+            except Exception as e:
+                print(f"Failed to send SMS to {phone}: {str(e)}")
+        
+        threading.Thread(target=_send).start()
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     def is_auto_signup_allowed(self, request, sociallogin):
@@ -63,17 +67,20 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         if sociallogin.account.provider == "google":
             picture_url = extra_data.get("picture")
             if picture_url:
-                try:
-                    response = requests.get(picture_url, timeout=10)
-                    if response.status_code == 200:
-                        # Extract extension or default to .jpg
-                        ext = picture_url.split('.')[-1].split('?')[0]
-                        if len(ext) > 4 or not ext:
-                            ext = 'jpg'
-                        file_name = f"google_avatar_{user.username}.{ext}"
-                        user.photo.save(file_name, ContentFile(response.content), save=False)
-                except Exception as e:
-                    print(f"Failed to download Google profile picture: {e}")
+                def _download_photo():
+                    try:
+                        response = requests.get(picture_url, timeout=10)
+                        if response.status_code == 200:
+                            # Extract extension or default to .jpg
+                            ext = picture_url.split('.')[-1].split('?')[0]
+                            if len(ext) > 4 or not ext:
+                                ext = 'jpg'
+                            file_name = f"google_avatar_{user.username}.{ext}"
+                            user.photo.save(file_name, ContentFile(response.content), save=True) # Save it
+                    except Exception as e:
+                        print(f"Failed to download Google profile picture: {e}")
+                
+                threading.Thread(target=_download_photo).start()
         
         # Ensure we have a username if allauth didn't provide one
         if not user.username:

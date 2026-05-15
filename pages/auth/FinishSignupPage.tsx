@@ -27,7 +27,7 @@ const FinishSignupPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    const { data: subjects } = useSubjects("All");
+    const { data: subjects } = useSubjects();
     const { data: grades } = useGrades();
     const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
 

@@ -62,4 +62,6 @@ urlpatterns = [
     path("parent-requests/", ParentRequestsView.as_view(), name="parent_requests"),
     path("parent-requests/<int:request_id>/", UpdateDeleteBookingView.as_view(), name="update_delete_booking"),
     path("reviews/", ReviewListCreateView.as_view(), name="review_list_create"),
+    path("tutor/reviews/", TutorReviewsView.as_view(), name="tutor_reviews"),
+    path("account/delete/", DeleteAccountView.as_view(), name="delete_account"),
 ]

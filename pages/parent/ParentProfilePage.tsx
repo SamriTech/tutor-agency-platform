@@ -10,8 +10,11 @@ import {
     checkUsernameAvailability,
     useProfilePasswordChange,
     useRequestPhoneChange,
-    useVerifyPhoneChange
+    useVerifyPhoneChange,
+    useDeleteAccount,
+    useLogout
 } from '@/features/auth/hooks';
+import { useNavigate } from 'react-router-dom';
 import { queryClient } from '../../providers/QueryProvider';
 import { AuthGuard } from '../../features/auth/AuthGuard';
 import { RoleGuard } from '../../features/auth/RoleGuard';
@@ -43,6 +46,9 @@ const ParentProfilePage: React.FC = () => {
     const { mutateAsync: verifyPhoneChange, isPending: verifyingPhoneChange } = useVerifyPhoneChange();
     const { showNotification } = useNotificationStore();
     const { data: grades } = useGrades();
+    const { mutateAsync: deleteAccount, isPending: deletingAccount } = useDeleteAccount();
+    const logout = useAuthStore(state => state.logout);
+    const navigate = useNavigate();
 
     const { id } = useParams<{ id: string }>();
     const isAdminEditing = !!id && (user?.role === Role.Admin);
@@ -181,6 +187,21 @@ const ParentProfilePage: React.FC = () => {
             setVerificationCode('');
         } catch (err) {
             showNotification("Invalid verification code", "error");
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("ARE YOU ABSOLUTELY SURE? This action is permanent and cannot be undone. All your data and wallet balance will be permanently deleted.")) {
+            return;
+        }
+
+        try {
+            await deleteAccount();
+            showNotification("Account deleted successfully. We're sorry to see you go.", "info");
+            logout();
+            navigate('/');
+        } catch (err) {
+            showNotification("Error deleting account", "error");
         }
     };
 
@@ -594,6 +615,31 @@ const ParentProfilePage: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            
+            {!isAdminEditing && (
+                <div className="mt-12 bg-red-50 p-8 rounded-[32px] border-2 border-red-100 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4 text-center md:text-left">
+                            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <AlertCircle className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-red-900">Danger Zone</h3>
+                                <p className="text-red-700/60 text-xs font-bold max-w-md">
+                                    Deleting your account is irreversible. All your personal data and wallet balance will be permanently erased.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleDeleteAccount}
+                            disabled={deletingAccount}
+                            className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-xs hover:bg-red-700 transition-all transform hover:scale-105 shadow-xl shadow-red-600/20 uppercase tracking-widest disabled:opacity-50"
+                        >
+                            {deletingAccount ? 'Deleting Account...' : 'Delete Permanently'}
+                        </button>
                     </div>
                 </div>
             )}
