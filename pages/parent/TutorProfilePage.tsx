@@ -160,17 +160,6 @@ const TutorProfilePage: React.FC = () => {
                                         {tutor.tutor_profile?.bio}
                                     </p>
                                 </section>
-
-                                <section>
-                                    <h2 className="text-2xl font-black text-neutral-900 mb-6">Expertise</h2>
-                                    <div className="flex flex-wrap gap-3">
-                                        {tutor.tutor_profile?.subject?.map(s => (
-                                            <span key={s.id} className="px-5 py-3 bg-neutral-100 text-neutral-800 rounded-2xl font-bold text-sm">
-                                                {s.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </section>
                             </div>
                         )}
 
